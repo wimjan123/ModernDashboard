@@ -27,6 +27,10 @@ target_link_libraries(dashboard_backend
 
 # Create an executable for testing
 add_executable(ModernDashboard cpp_backend/src/main.cpp)
+target_include_directories(ModernDashboard PRIVATE
+    cpp_backend/include
+    shared
+)
 target_link_libraries(ModernDashboard dashboard_backend)
 
 if(WIN32)
