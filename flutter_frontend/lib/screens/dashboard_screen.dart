@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/dashboard/dashboard_layout.dart';
 import '../services/ffi_bridge.dart';
+import '../services/cpp_bridge.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,27 +16,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _initEngine() {
     try {
-      final ok = FfiBridge.initializeEngine();
-      setState(() {
-        _ffiStatus = ok ? 'Engine initialized' : 'Engine failed to initialize';
-      });
+      if (FfiBridge.isSupported) {
+        final ok = FfiBridge.initializeEngine();
+        setState(() {
+          _ffiStatus = ok ? 'Engine initialized (FFI)' : 'Engine failed to initialize';
+        });
+      } else {
+        final ok = CppBridge.initializeEngine();
+        setState(() {
+          _ffiStatus = ok ? 'Engine initialized (Mock)' : 'Engine failed to initialize';
+        });
+      }
     } catch (e) {
+      // Fallback to mock bridge
+      final ok = CppBridge.initializeEngine();
       setState(() {
-        _ffiStatus = 'Init error: $e';
+        _ffiStatus = ok ? 'Engine initialized (Mock - FFI failed)' : 'Engine failed to initialize';
       });
     }
   }
 
   void _loadNews() {
     try {
-      final data = FfiBridge.getNewsData();
+      String data;
+      if (FfiBridge.isSupported) {
+        data = FfiBridge.getNewsData();
+      } else {
+        data = CppBridge.getNewsData();
+      }
       setState(() {
         _newsPreview = data.length > 200 ? '${data.substring(0, 200)}…' : data;
       });
     } catch (e) {
-      setState(() {
-        _newsPreview = 'Load error: $e';
-      });
+      // Fallback to mock data
+      try {
+        final data = CppBridge.getNewsData();
+        setState(() {
+          _newsPreview = data.length > 200 ? '${data.substring(0, 200)}…' : data;
+        });
+      } catch (fallbackError) {
+        setState(() {
+          _newsPreview = 'Load error: $e (Fallback also failed: $fallbackError)';
+        });
+      }
     }
   }
 
@@ -66,12 +89,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   runSpacing: 12,
                   children: [
                     ElevatedButton(
-                      onPressed: isFFISupported ? _initEngine : null,
-                      child: const Text('Initialize Engine (FFI)'),
+                      onPressed: _initEngine,
+                      child: const Text('Initialize Engine'),
                     ),
                     ElevatedButton(
-                      onPressed: isFFISupported ? _loadNews : null,
-                      child: const Text('Get News (FFI)'),
+                      onPressed: _loadNews,
+                      child: const Text('Get News'),
                     ),
                   ],
                 ),

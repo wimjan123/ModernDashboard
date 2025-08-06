@@ -7,14 +7,29 @@ class CppBridge {
         {
           "title": "Sample News Article",
           "description": "This is a sample news article for web platform",
+          "source": "Web News",
           "url": "https://example.com",
           "date": "${DateTime.now().toIso8601String()}"
         }
       ]''';
     } else {
-      // For native platforms, we would use FFI here
-      // For now, return mock data until FFI is properly set up
-      return '[]';
+      // For native platforms, provide mock data until FFI is properly set up
+      return '''[
+        {
+          "title": "Flutter Desktop App Running",
+          "source": "Modern Dashboard",
+          "description": "Your macOS app is working with mock data",
+          "url": "https://flutter.dev",
+          "date": "${DateTime.now().toIso8601String()}"
+        },
+        {
+          "title": "Native Platform Detected",
+          "source": "System Info",
+          "description": "Running on desktop platform with fallback data",
+          "url": "https://flutter.dev/desktop",
+          "date": "${DateTime.now().subtract(Duration(hours: 1)).toIso8601String()}"
+        }
+      ]''';
     }
   }
 
@@ -28,7 +43,13 @@ class CppBridge {
         "windSpeed": 5
       }''';
     } else {
-      return '{"location":"City","temperature":22,"conditions":"Sunny"}';
+      return '''{
+        "location": "macOS Desktop",
+        "temperature": 24,
+        "conditions": "Partly Cloudy",
+        "humidity": 58,
+        "windSpeed": 8
+      }''';
     }
   }
 
@@ -43,7 +64,20 @@ class CppBridge {
         }
       ]''';
     } else {
-      return '[{"id":"1","title":"Sample task","completed":false}]';
+      return '''[
+        {
+          "id": "1",
+          "title": "Test macOS app functionality",
+          "completed": false,
+          "date": "${DateTime.now().toIso8601String()}"
+        },
+        {
+          "id": "2", 
+          "title": "Set up C++ FFI integration",
+          "completed": false,
+          "date": "${DateTime.now().add(Duration(hours: 1)).toIso8601String()}"
+        }
+      ]''';
     }
   }
 
@@ -58,7 +92,20 @@ class CppBridge {
         }
       ]''';
     } else {
-      return '[{"from":"sender@example.com","subject":"Test","read":false}]';
+      return '''[
+        {
+          "from": "system@moderndashboard.app",
+          "subject": "macOS App Successfully Launched",
+          "read": false,
+          "date": "${DateTime.now().toIso8601String()}"
+        },
+        {
+          "from": "flutter@google.com", 
+          "subject": "Desktop Platform Support Active",
+          "read": true,
+          "date": "${DateTime.now().subtract(Duration(minutes: 30)).toIso8601String()}"
+        }
+      ]''';
     }
   }
 
