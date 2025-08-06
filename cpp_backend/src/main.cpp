@@ -138,3 +138,17 @@ int update_widget_config(const char* widget_id, const char* config_json) {
 }
 
 }
+
+int main() {
+    // Initialize the dashboard engine
+    if (!initialize_dashboard_engine()) {
+        return 1;
+    }
+    
+    // Keep the engine running (in a real app, this would be an event loop)
+    // For testing purposes, we'll just initialize and exit
+    
+    // Cleanup
+    shutdown_dashboard_engine();
+    return 0;
+}
