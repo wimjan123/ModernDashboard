@@ -20,7 +20,7 @@ class DarkThemeData {
     dividerColor: Colors.white24,
     textTheme: _textTheme,
     elevatedButtonTheme: _elevatedButtonTheme,
-    cardTheme: _cardTheme,
+    cardTheme: _cardTheme as CardThemeData?,
   );
 
   static const TextTheme _textTheme = TextTheme(

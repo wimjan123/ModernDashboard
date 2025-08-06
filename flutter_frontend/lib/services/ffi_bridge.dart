@@ -1,24 +1,28 @@
 import 'dart:ffi' as ffi;
 import 'dart:io' show Platform;
 
+// Import Utf8 and conversion helpers from package:ffi
+import 'package:ffi/ffi.dart';
+
 typedef _init_native = ffi.Int32 Function();
 typedef _init_dart = int Function();
 
-typedef _get_news_native = ffi.Pointer<ffi.Utf8> Function();
-typedef _get_news_dart = ffi.Pointer<ffi.Utf8> Function();
+// Represent const char* as Pointer<ffi.Char> in Dart FFI (Dart 3+)
+typedef _get_news_native = ffi.Pointer<ffi.Char> Function();
+typedef _get_news_dart = ffi.Pointer<ffi.Char> Function();
 
 class FfiBridge {
   static ffi.DynamicLibrary? _lib;
   static _init_dart? _initialize;
   static _get_news_dart? _getNewsData;
 
-  static bool get isSupported => !Platform.isAndroid && !Platform.isIOS && !Platform.isLinux && !Platform.isWindows ? Platform.isMacOS : (Platform.isLinux || Platform.isWindows);
+  // Support macOS/Linux/Windows; exclude mobile/web
+  static bool get isSupported => Platform.isMacOS || Platform.isLinux || Platform.isWindows;
 
   static void _ensureLoaded() {
     if (_lib != null) return;
 
     if (Platform.isMacOS) {
-      // Expect libmoderndash.dylib to be discoverable via @rpath inside Flutter macOS app bundle
       _lib = ffi.DynamicLibrary.open('libmoderndash.dylib');
     } else if (Platform.isLinux) {
       _lib = ffi.DynamicLibrary.open('libmoderndash.so');
@@ -45,23 +49,8 @@ class FfiBridge {
 
   static String getNewsData() {
     _ensureLoaded();
-    final ptr = _getNewsData!.call();
-    // Convert C string (Utf8) to Dart string without taking ownership (C-side holds static/memoized buffers)
-    return ptr.cast<ffi.Utf8>().toDartString();
-  }
-}
-
-// Utf8 helpers: since we avoid external packages, implement minimal toDartString
-extension _Utf8Pointer on ffi.Pointer<ffi.Utf8> {
-  String toDartString() {
-    final List<int> codeUnits = [];
-    int offset = 0;
-    while (true) {
-      final int byte = this.elementAt(offset).value;
-      if (byte == 0) break;
-      codeUnits.add(byte);
-      offset += 1;
-    }
-    return String.fromCharCodes(codeUnits);
+    final ffi.Pointer<ffi.Char> ptr = _getNewsData!.call();
+    // Convert zero-terminated C string to Dart string using package:ffi
+    return pkg_ffi.cstrToDartString(ptr);
   }
 }
