@@ -8,7 +8,7 @@ on:
 
 jobs:
   cpp-backend:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     name: Build C++ Backend
     
     steps:
@@ -36,7 +36,7 @@ jobs:
         fi
 
   flutter-frontend:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     name: Build Flutter Frontend
     
     steps:
@@ -81,7 +81,7 @@ jobs:
         fi
 
   integration-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     name: Integration Test
     needs: [cpp-backend, flutter-frontend]
     
