@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(PkgConfig REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(nlohmann_json 3.2.0 REQUIRED)
 
 pkg_check_modules(CURL REQUIRED libcurl)
 
@@ -29,6 +30,7 @@ target_link_libraries(moderndash
     ${CURL_LIBRARIES}
     OpenSSL::SSL
     OpenSSL::Crypto
+    nlohmann_json::nlohmann_json
 )
 
 # Platform-specific properties and deps

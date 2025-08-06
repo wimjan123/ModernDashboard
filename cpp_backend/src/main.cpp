@@ -1,15 +1,43 @@
+#include "export.h"
 #include "core/dashboard_engine.h"
+#include "services/weather_service.h"
 #include "ffi_interface.h"
 #include <memory>
 #include <mutex>
 #include <string>
 #include <ctime>
+#include <cstdlib>
 
 using namespace dashboard;
 
 namespace {
     std::unique_ptr<core::DashboardEngine> g_engine;
+    std::unique_ptr<dashboard::services::WeatherService> g_weather_service;
+    std::string g_current_weather_location = "San Francisco,CA,US";
     std::mutex g_engine_mutex;
+    std::mutex g_weather_mutex;
+    
+    // Initialize weather service if not already done
+    void ensure_weather_service_initialized() {
+        if (!g_weather_service) {
+            g_weather_service = std::make_unique<dashboard::services::WeatherService>();
+            
+            // Try to initialize with API key from environment or use demo key
+            const char* api_key = getenv("OPENWEATHER_API_KEY");
+            if (!api_key || strlen(api_key) == 0) {
+                // For demo purposes, we'll use a placeholder that returns mock data
+                // In production, this should fail gracefully and return cached/mock data
+                api_key = "demo_key_replace_with_real_key";
+            }
+            
+            if (!g_weather_service->initialize(api_key, 
+                                              dashboard::services::WeatherService::Units::METRIC, 
+                                              "en")) {
+                // If initialization fails, keep service for graceful error handling
+                // The service will return appropriate error responses
+            }
+        }
+    }
 }
 
 // Implement the C ABI declared in shared/ffi_interface.h
@@ -92,24 +120,77 @@ MD_API const char* get_stream_data(const char* /*stream_id*/) {
 }
 
 MD_API const char* get_weather_data() {
-    static std::string weather_json = R"({
-        "location": "San Francisco, CA",
-        "temperature": 18.5,
-        "conditions": "Partly Cloudy",
-        "humidity": 72,
-        "windSpeed": 12.3,
-        "pressure": 1013.2,
-        "visibility": 16.1,
-        "uvIndex": 4,
-        "icon": "partly-cloudy-day",
-        "lastUpdated": ")" + std::to_string(time(nullptr)) + R"("
-    })";
-    return weather_json.c_str();
+    std::lock_guard<std::mutex> lock(g_weather_mutex);
+    
+    ensure_weather_service_initialized();
+    
+    if (!g_weather_service) {
+        // Fallback to mock data if service creation failed
+        static std::string weather_json = R"({
+            "location": "San Francisco, CA",
+            "temperature": 18.5,
+            "conditions": "Partly Cloudy",
+            "humidity": 72,
+            "windSpeed": 12.3,
+            "pressure": 1013.2,
+            "visibility": 16.1,
+            "uvIndex": 4,
+            "icon": "partly-cloudy-day",
+            "lastUpdated": ")" + std::to_string(time(nullptr)) + R"(",
+            "source": "mock"
+        })";
+        return weather_json.c_str();
+    }
+    
+    // Try to get weather data using the current location
+    static std::string cached_weather_data;
+    
+    // Parse location string - assume format is "City,State,Country" or "City,Country"
+    // For now, use city name method (we could enhance this to parse coordinates later)
+    cached_weather_data = g_weather_service->getCurrentWeather(g_current_weather_location);
+    
+    return cached_weather_data.c_str();
 }
 
-MD_API int update_weather_location(const char* /*location*/) {
-    // TODO: Implement weather service
-    return 1;
+MD_API int update_weather_location(const char* location) {
+    if (!location) {
+        return 0;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_weather_mutex);
+    
+    ensure_weather_service_initialized();
+    
+    if (!g_weather_service) {
+        return 0;
+    }
+    
+    // Update the current location and test it with a geocoding request
+    std::string new_location(location);
+    
+    // Test if the location is valid by trying to geocode it
+    std::string geocode_result = g_weather_service->geocodeLocation(new_location, 1);
+    
+    // Parse the result to see if we got valid coordinates
+    try {
+        nlohmann::json result = nlohmann::json::parse(geocode_result);
+        
+        // Check if it's an error response
+        if (result.contains("error") && result["error"].get<bool>()) {
+            return 0; // Location not found or API error
+        }
+        
+        // Check if we got valid results (should be an array with at least one item)
+        if (result.is_array() && !result.empty()) {
+            g_current_weather_location = new_location;
+            return 1; // Success
+        }
+    } catch (const std::exception&) {
+        // JSON parsing failed, probably not a valid response
+        return 0;
+    }
+    
+    return 0; // Default failure
 }
 
 MD_API const char* get_todo_data() {
