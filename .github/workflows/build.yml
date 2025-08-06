@@ -75,9 +75,92 @@ jobs:
           exit 1
         fi
 
+  cpp-backend-macos:
+    runs-on: macos-latest
+    name: Build C++ Backend (macOS)
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        brew install cmake curl nlohmann-json jq
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --config Release
+    
+    - name: Test build artifacts
+      run: |
+        ls -la build/
+        if [ -f "build/ModernDashboard" ]; then
+          echo "✅ C++ backend (macOS) built successfully"
+        else
+          echo "❌ C++ backend (macOS) build failed"
+          exit 1
+        fi
+
+  flutter-frontend-macos:
+    runs-on: macos-latest
+    name: Build Flutter Frontend (macOS)
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+    
+    - name: Get Flutter dependencies
+      working-directory: flutter_frontend
+      run: flutter pub get
+    
+    - name: Analyze Flutter code
+      working-directory: flutter_frontend
+      run: flutter analyze
+    
+    - name: Build Flutter web
+      working-directory: flutter_frontend
+      run: flutter build web --no-tree-shake-icons
+    
+    - name: Build Flutter macOS
+      working-directory: flutter_frontend
+      run: |
+        # Enable macOS desktop support if not already enabled
+        flutter config --enable-macos-desktop
+        # Create macOS project structure if needed
+        flutter create --platforms=macos .
+        # Build for macOS
+        flutter build macos
+    
+    - name: Test build artifacts
+      working-directory: flutter_frontend
+      run: |
+        echo "Checking build artifacts..."
+        echo "Web build:"
+        ls -la build/web/ || echo "No web build found"
+        echo "macOS build:"
+        ls -la build/macos/Build/Products/Release/ || echo "No macOS build found"
+        if [ -f "build/web/index.html" ]; then
+          echo "✅ Flutter web built successfully"
+        else
+          echo "❌ Flutter web build failed"
+          exit 1
+        fi
+        if [ -d "build/macos/Build/Products/Release/modern_dashboard.app" ]; then
+          echo "✅ Flutter macOS app built successfully"
+        else
+          echo "❌ Flutter macOS app build failed"
+          exit 1
+        fi
+
   integration-test:
     runs-on: self-hosted
-    name: Integration Test
+    name: Integration Test (Linux)
     needs: [cpp-backend, flutter-frontend]
     
     steps:
@@ -110,3 +193,39 @@ jobs:
       run: |
         echo "✅ Both C++ backend and Flutter frontend built successfully"
         echo "🎉 Project is buildable!"
+
+  integration-test-macos:
+    runs-on: macos-latest
+    name: Integration Test (macOS)
+    needs: [cpp-backend-macos, flutter-frontend-macos]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        brew install cmake curl nlohmann-json jq
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+    
+    - name: Build C++ Backend
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+    
+    - name: Build Flutter Frontend
+      working-directory: flutter_frontend
+      run: |
+        flutter pub get
+        flutter config --enable-macos-desktop
+        flutter create --platforms=macos .
+        flutter build macos
+    
+    - name: Verify integration
+      run: |
+        echo "✅ Both C++ backend and Flutter frontend (macOS) built successfully"
+        echo "🎉 macOS project is buildable!"
