@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../services/ffi_bridge.dart';
 import '../../services/cpp_bridge.dart';
 
 class TodoItem {
@@ -39,7 +40,7 @@ class _TodoWidgetState extends State<TodoWidget> {
 
   Future<void> _loadTodos() async {
     try {
-      final todoJson = CppBridge.getTodoData();
+      final todoJson = FfiBridge.isSupported ? FfiBridge.getTodoData() : CppBridge.getTodoData();
       final List<dynamic> jsonData = json.decode(todoJson) as List<dynamic>;
       
       setState(() {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../services/ffi_bridge.dart';
 import '../../services/cpp_bridge.dart';
 
 class WeatherData {
@@ -39,7 +40,7 @@ class _WeatherWidgetState extends State<WeatherWidget> {
 
   Future<void> _loadWeather() async {
     try {
-      final weatherJson = CppBridge.getWeatherData();
+      final weatherJson = FfiBridge.isSupported ? FfiBridge.getWeatherData() : CppBridge.getWeatherData();
       final Map<String, dynamic> jsonData = json.decode(weatherJson) as Map<String, dynamic>;
       
       setState(() {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../services/ffi_bridge.dart';
 import '../../services/cpp_bridge.dart';
 
 class NewsItem {
@@ -29,7 +30,7 @@ class _NewsWidgetState extends State<NewsWidget> {
 
   Future<void> _loadNews() async {
     try {
-      final newsData = CppBridge.getNewsData();
+      final newsData = FfiBridge.isSupported ? FfiBridge.getNewsData() : CppBridge.getNewsData();
       final List<dynamic> jsonData = json.decode(newsData) as List<dynamic>;
       setState(() {
         _isLoading = false;

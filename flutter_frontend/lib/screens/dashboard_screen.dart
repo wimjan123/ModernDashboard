@@ -11,29 +11,14 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  String _ffiStatus = 'Engine not initialized';
+  String _ffiStatus = 'Engine initialized at startup';
   String _newsPreview = '(no data)';
 
-  void _initEngine() {
-    try {
-      if (FfiBridge.isSupported) {
-        final ok = FfiBridge.initializeEngine();
-        setState(() {
-          _ffiStatus = ok ? 'Engine initialized (FFI)' : 'Engine failed to initialize';
-        });
-      } else {
-        final ok = CppBridge.initializeEngine();
-        setState(() {
-          _ffiStatus = ok ? 'Engine initialized (Mock)' : 'Engine failed to initialize';
-        });
-      }
-    } catch (e) {
-      // Fallback to mock bridge
-      final ok = CppBridge.initializeEngine();
-      setState(() {
-        _ffiStatus = ok ? 'Engine initialized (Mock - FFI failed)' : 'Engine failed to initialize';
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    // Attempt to load initial news on startup
+    _loadNews();
   }
 
   void _loadNews() {
@@ -111,10 +96,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        ElevatedButton(
-                          onPressed: _initEngine,
-                          child: const Text('Initialize Engine'),
-                        ),
                         ElevatedButton(
                           onPressed: _loadNews,
                           child: const Text('Get News'),
