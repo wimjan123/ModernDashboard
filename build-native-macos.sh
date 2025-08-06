@@ -7,19 +7,30 @@ echo "🔨 Building C++ shared library..."
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 
-# Check if library was built
-if [ ! -f "build/moderndash.dylib" ]; then
-    echo "❌ Failed to build moderndash.dylib"
-    echo "Check CMake output for errors"
+# Check what was actually built
+echo "🔍 Checking build directory contents..."
+ls -la build/
+
+# Look for the library file (could be libmoderndash.dylib or moderndash.dylib)
+DYLIB_PATH=""
+if [ -f "build/libmoderndash.dylib" ]; then
+    DYLIB_PATH="build/libmoderndash.dylib"
+elif [ -f "build/moderndash.dylib" ]; then
+    DYLIB_PATH="build/moderndash.dylib"
+fi
+
+if [ -z "$DYLIB_PATH" ]; then
+    echo "❌ Failed to find .dylib file in build directory"
+    echo "Expected: build/moderndash.dylib or build/libmoderndash.dylib"
     exit 1
 fi
 
-echo "✅ Built moderndash.dylib"
-ls -la build/moderndash.dylib
+echo "✅ Found library: $DYLIB_PATH"
+ls -la "$DYLIB_PATH"
 
 # Step 2: Copy library to Flutter directory (where FFI will look for it)
 echo "📂 Copying library to Flutter directory..."
-cp build/moderndash.dylib flutter_frontend/
+cp "$DYLIB_PATH" flutter_frontend/moderndash.dylib
 echo "✅ Copied to flutter_frontend/moderndash.dylib"
 
 # Step 3: Enable macOS desktop and get dependencies
