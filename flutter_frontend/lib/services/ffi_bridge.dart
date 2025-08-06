@@ -51,8 +51,12 @@ class FfiBridge {
   static _noarg_str_dart? _getMailData;
   static _str_int_dart? _configureMailAccount;
 
-  static bool get isSupported =>
-      Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+  static bool get isSupported {
+    if (_useMock) return true;
+    if (!(Platform.isMacOS || Platform.isLinux || Platform.isWindows)) return false;
+    _ensureLoaded();
+    return _lib != null;
+  }
 
   static bool get _useMock {
     // Prefer runtime dart-define, fallback to non-FFI platforms
@@ -268,13 +272,13 @@ class FfiBridge {
       }
       
       if (_lib == null) {
-        print('FFI: ❌ Library not loaded for getNewsData');
-        return '[]';
+        print('FFI: ❌ Library not loaded for getNewsData, falling back to mock data');
+        return MockDataService().getNewsData();
       }
       
       if (_getNewsData == null) {
-        print('FFI: ❌ get_news_data function not found');
-        return '[]';
+        print('FFI: ❌ get_news_data function not found, falling back to mock data');
+        return MockDataService().getNewsData();
       }
       
       print('FFI: Calling native get_news_data()...');
@@ -283,8 +287,8 @@ class FfiBridge {
       print('FFI: get_news_data() returned ${result.length} chars: ${result.substring(0, result.length.clamp(0, 100))}${result.length > 100 ? '...' : ''}');
       return result;
     } catch (e) {
-      print('FFI: ❌ getNewsData failed: $e');
-      return '[]';
+      print('FFI: ❌ getNewsData failed: $e, falling back to mock data');
+      return MockDataService().getNewsData();
     }
   }
 
@@ -338,14 +342,25 @@ class FfiBridge {
   }
 
   static String getStreamData(String streamId) {
-    _ensureLoaded();
-    if (_useMock) return MockDataService().getStreamData();
-    final s = _asUtf8(streamId);
     try {
-      final ptr = _getStreamData!.call(s);
-      return _toDartString(ptr);
-    } finally {
-      malloc.free(s);
+      _ensureLoaded();
+      if (_useMock) return MockDataService().getStreamData();
+      
+      if (_lib == null || _getStreamData == null) {
+        print('FFI: ❌ Library or function not available for getStreamData, falling back to mock data');
+        return MockDataService().getStreamData();
+      }
+      
+      final s = _asUtf8(streamId);
+      try {
+        final ptr = _getStreamData!.call(s);
+        return _toDartString(ptr);
+      } finally {
+        malloc.free(s);
+      }
+    } catch (e) {
+      print('FFI getStreamData failed: $e, falling back to mock data');
+      return MockDataService().getStreamData();
     }
   }
 
@@ -354,11 +369,17 @@ class FfiBridge {
     try {
       _ensureLoaded();
       if (_useMock) return MockDataService().getWeatherData();
+      
+      if (_lib == null || _getWeatherData == null) {
+        print('FFI: ❌ Library or function not available for getWeatherData, falling back to mock data');
+        return MockDataService().getWeatherData();
+      }
+      
       final ptr = _getWeatherData!.call();
       return _toDartString(ptr);
     } catch (e) {
-      print('FFI getWeatherData failed: $e');
-      return '{}';
+      print('FFI getWeatherData failed: $e, falling back to mock data');
+      return MockDataService().getWeatherData();
     }
   }
 
@@ -379,11 +400,17 @@ class FfiBridge {
     try {
       _ensureLoaded();
       if (_useMock) return MockDataService().getTodoData();
+      
+      if (_lib == null || _getTodoData == null) {
+        print('FFI: ❌ Library or function not available for getTodoData, falling back to mock data');
+        return MockDataService().getTodoData();
+      }
+      
       final ptr = _getTodoData!.call();
       return _toDartString(ptr);
     } catch (e) {
-      print('FFI getTodoData failed: $e');
-      return '[]';
+      print('FFI getTodoData failed: $e, falling back to mock data');
+      return MockDataService().getTodoData();
     }
   }
 
@@ -428,11 +455,17 @@ class FfiBridge {
     try {
       _ensureLoaded();
       if (_useMock) return MockDataService().getMailData();
+      
+      if (_lib == null || _getMailData == null) {
+        print('FFI: ❌ Library or function not available for getMailData, falling back to mock data');
+        return MockDataService().getMailData();
+      }
+      
       final ptr = _getMailData!.call();
       return _toDartString(ptr);
     } catch (e) {
-      print('FFI getMailData failed: $e');
-      return '[]';
+      print('FFI getMailData failed: $e, falling back to mock data');
+      return MockDataService().getMailData();
     }
   }
 
