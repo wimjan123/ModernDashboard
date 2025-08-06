@@ -20,7 +20,7 @@ class DarkThemeData {
     dividerColor: Colors.white24,
     textTheme: _textTheme,
     elevatedButtonTheme: _elevatedButtonTheme,
-    cardTheme: _cardTheme as CardThemeData?,
+    cardTheme: _cardTheme,
   );
 
   static const TextTheme _textTheme = TextTheme(
@@ -38,7 +38,7 @@ class DarkThemeData {
     ),
   );
 
-  static const CardTheme _cardTheme = CardTheme(
+  static const CardThemeData _cardTheme = CardThemeData(
     elevation: 2,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(12)),
