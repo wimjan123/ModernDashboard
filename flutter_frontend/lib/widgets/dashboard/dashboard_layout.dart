@@ -1,14 +1,29 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../news_widget/news_widget.dart';
 import '../weather_widget/weather_widget.dart';
 import '../todo_widget/todo_widget.dart';
 import '../mail_widget/mail_widget.dart';
+import '../common/glass_card.dart';
 import '../../services/cpp_bridge.dart';
+import '../../core/theme/dark_theme.dart';
+
+// Conditional import for FFI (web uses stub)
+import '../../services/ffi_bridge.dart' if (dart.library.html) '../../services/ffi_bridge_web.dart';
 
 class WidgetConfig {
   final String id;
-  const WidgetConfig(this.id);
+  final String title;
+  final IconData icon;
+  final Color accentColor;
+  
+  const WidgetConfig({
+    required this.id,
+    required this.title, 
+    required this.icon,
+    required this.accentColor,
+  });
 }
 
 class DashboardLayout extends StatefulWidget {
@@ -18,33 +33,94 @@ class DashboardLayout extends StatefulWidget {
   State<DashboardLayout> createState() => _DashboardLayoutState();
 }
 
-class _DashboardLayoutState extends State<DashboardLayout> {
+class _DashboardLayoutState extends State<DashboardLayout> 
+    with TickerProviderStateMixin {
   final List<WidgetConfig> _widgets = const [
-    WidgetConfig('news'),
-    WidgetConfig('weather'), 
-    WidgetConfig('todo'),
-    WidgetConfig('mail'),
+    WidgetConfig(
+      id: 'news', 
+      title: 'Latest News', 
+      icon: Icons.article_rounded,
+      accentColor: DarkThemeData.accentColor,
+    ),
+    WidgetConfig(
+      id: 'weather', 
+      title: 'Weather', 
+      icon: Icons.wb_sunny_rounded,
+      accentColor: DarkThemeData.warningColor,
+    ),
+    WidgetConfig(
+      id: 'todo', 
+      title: 'Tasks', 
+      icon: Icons.checklist_rounded,
+      accentColor: DarkThemeData.successColor,
+    ),
+    WidgetConfig(
+      id: 'mail', 
+      title: 'Messages', 
+      icon: Icons.mail_rounded,
+      accentColor: Color(0xFF8B5CF6),
+    ),
   ];
+  
   Timer? _updateTimer;
+  late AnimationController _slideAnimationController;
+  late Animation<Offset> _slideAnimation;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    _slideAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+    
     _initializeBackend();
     _startPeriodicUpdates();
+    
+    // Start slide animation
+    _slideAnimationController.forward();
   }
 
-  void _initializeBackend() {
+  void _initializeBackend() async {
     try {
-      CppBridge.initializeEngine();
+      bool success = false;
+      
+      // Try FFI first (will be stub on web), fallback to CppBridge
+      try {
+        success = FfiBridge.initializeEngine();
+        if (!success || !FfiBridge.isSupported) {
+          success = CppBridge.initializeEngine();
+          debugPrint('Using CppBridge mock data: $success');
+        } else {
+          debugPrint('FFI Bridge initialized: $success');
+        }
+      } catch (e) {
+        debugPrint('FFI Bridge failed: $e, falling back to CppBridge');
+        success = CppBridge.initializeEngine();
+      }
+      
+      setState(() {
+        _isInitialized = success;
+      });
     } catch (e) {
       debugPrint('Failed to initialize backend: $e');
+      setState(() {
+        _isInitialized = false;
+      });
     }
   }
 
   void _startPeriodicUpdates() {
     _updateTimer?.cancel();
-    _updateTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _updateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
     });
   }
@@ -52,72 +128,131 @@ class _DashboardLayoutState extends State<DashboardLayout> {
   @override
   void dispose() {
     _updateTimer?.cancel();
+    _slideAnimationController.dispose();
     try {
-      CppBridge.shutdownEngine();
+      if (FfiBridge.isSupported) {
+        FfiBridge.shutdownEngine();
+      } else {
+        CppBridge.shutdownEngine();
+      }
     } catch (e) {
       debugPrint('Failed to shutdown backend: $e');
     }
     super.dispose();
   }
 
-  Widget _buildWidget(WidgetConfig cfg) {
+  Widget _buildWidget(WidgetConfig cfg, int index) {
+    Widget content;
     switch (cfg.id) {
       case 'news':
-        return const NewsWidget();
+        content = const NewsWidget();
+        break;
       case 'weather':
-        return const WeatherWidget();
+        content = const WeatherWidget();
+        break;
       case 'todo':
-        return const TodoWidget();
+        content = const TodoWidget();
+        break;
       case 'mail':
-        return const MailWidget();
+        content = const MailWidget();
+        break;
       default:
-        return Card(
+        content = GlassInfoCard(
+          title: 'Unknown Widget',
+          icon: Icon(Icons.error_outline_rounded, color: DarkThemeData.errorColor),
+          accentColor: DarkThemeData.errorColor,
           child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-                const SizedBox(height: 8),
-                Text('Unknown widget: ${cfg.id}', 
-                     style: const TextStyle(color: Colors.grey)),
-              ],
+            child: Text(
+              'Widget ${cfg.id} not found',
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
             ),
           ),
         );
     }
+
+    return SlideTransition(
+      position: _slideAnimation,
+      child: AnimatedOpacity(
+        duration: Duration(milliseconds: 300 + (index * 100)),
+        opacity: _isInitialized ? 1.0 : 0.7,
+        child: content,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Responsive grid layout
-            int crossAxisCount = 2;
-            if (constraints.maxWidth > 1200) {
-              crossAxisCount = 4;
-            } else if (constraints.maxWidth > 800) {
-              crossAxisCount = 3;
-            }
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with status indicator
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _isInitialized 
+                      ? DarkThemeData.successColor 
+                      : DarkThemeData.errorColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                _isInitialized ? 'Dashboard Online' : 'Connecting...',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: _isInitialized 
+                      ? DarkThemeData.successColor 
+                      : DarkThemeData.errorColor,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Last updated: ${DateTime.now().toString().substring(11, 19)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          // Widget grid
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Enhanced responsive layout
+                int crossAxisCount = 2;
+                double childAspectRatio = 1.1;
+                
+                if (constraints.maxWidth > 1400) {
+                  crossAxisCount = 4;
+                  childAspectRatio = 1.2;
+                } else if (constraints.maxWidth > 1000) {
+                  crossAxisCount = 3;
+                  childAspectRatio = 1.15;
+                } else if (constraints.maxWidth < 600) {
+                  crossAxisCount = 1;
+                  childAspectRatio = 0.8;
+                }
 
-            return GridView.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                childAspectRatio: 1.2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemCount: _widgets.length,
-              itemBuilder: (context, index) => AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                child: _buildWidget(_widgets[index]),
-              ),
-            );
-          },
-        ),
+                return GridView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: childAspectRatio,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                  ),
+                  itemCount: _widgets.length,
+                  itemBuilder: (context, index) => _buildWidget(_widgets[index], index),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

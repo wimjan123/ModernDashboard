@@ -55,9 +55,9 @@ class FfiBridge {
     if (_lib != null) return;
 
     if (Platform.isMacOS) {
-      _lib = ffi.DynamicLibrary.open('libmoderndash.dylib');
+      _lib = ffi.DynamicLibrary.open('./moderndash.dylib');
     } else if (Platform.isLinux) {
-      _lib = ffi.DynamicLibrary.open('libmoderndash.so');
+      _lib = ffi.DynamicLibrary.open('./moderndash.so');
     } else if (Platform.isWindows) {
       _lib = ffi.DynamicLibrary.open('moderndash.dll');
     } else {

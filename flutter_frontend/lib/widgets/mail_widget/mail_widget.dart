@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/cpp_bridge.dart';
+import '../common/glass_card.dart';
+import '../../core/theme/dark_theme.dart';
 
 class MailMessage {
   final String from;
@@ -61,83 +63,124 @@ class _MailWidgetState extends State<MailWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.mail_outlined),
-                const SizedBox(width: 8),
-                const Text('Mail', style: TextStyle(fontWeight: FontWeight.bold)),
-                const Spacer(),
-                if (_unreadCount > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _unreadCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
+    return GlassInfoCard(
+      title: 'Messages',
+      icon: Stack(
+        children: [
+          Icon(
+            Icons.mail_rounded,
+            color: const Color(0xFF8B5CF6),
+            size: 20,
+          ),
+          if (_unreadCount > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: DarkThemeData.errorColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                  : _mailMessages.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No messages',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _mailMessages.length,
-                          itemBuilder: (context, i) {
-                            final mail = _mailMessages[i];
-                            return ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(
-                                mail.read ? Icons.mail_outlined : Icons.markunread,
-                                color: mail.read ? Colors.grey : Theme.of(context).colorScheme.primary,
-                                size: 20,
-                              ),
-                              title: Text(
-                                mail.from,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: mail.read ? FontWeight.normal : FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(
-                                mail.subject,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: mail.read ? FontWeight.normal : FontWeight.w500,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-            ),
-          ],
-        ),
+        ],
       ),
+      accentColor: const Color(0xFF8B5CF6),
+      child: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF8B5CF6),
+              ),
+            )
+          : _mailMessages.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.mail_outline_rounded,
+                        size: 32,
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No messages',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _mailMessages.length,
+                  separatorBuilder: (context, index) => const Divider(
+                    height: 1,
+                    thickness: 0.5,
+                    color: Color(0xFF334155),
+                  ),
+                  itemBuilder: (context, i) {
+                    final mail = _mailMessages[i];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: mail.read
+                                  ? Colors.transparent
+                                  : const Color(0xFF8B5CF6).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: mail.read
+                                    ? Theme.of(context).colorScheme.outline.withOpacity(0.3)
+                                    : const Color(0xFF8B5CF6).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Icon(
+                              mail.read ? Icons.mail_outlined : Icons.markunread_rounded,
+                              color: mail.read
+                                  ? Theme.of(context).colorScheme.outline
+                                  : const Color(0xFF8B5CF6),
+                              size: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  mail.from,
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: mail.read ? FontWeight.w400 : FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  mail.subject,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

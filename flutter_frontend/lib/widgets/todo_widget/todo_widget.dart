@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../services/ffi_bridge.dart';
 import '../../services/cpp_bridge.dart';
+import '../common/glass_card.dart';
+import '../../core/theme/dark_theme.dart';
+
+// Conditional import for FFI (web uses stub)
+import '../../services/ffi_bridge.dart' if (dart.library.html) '../../services/ffi_bridge_web.dart';
 
 class TodoItem {
   final String id;
@@ -60,67 +65,101 @@ class _TodoWidgetState extends State<TodoWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.checklist_outlined),
-                SizedBox(width: 8),
-                Text('Todo', style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                  : _todoItems.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No tasks yet',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _todoItems.length,
-                          itemBuilder: (context, i) {
-                            final todo = _todoItems[i];
-                            return ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(
-                                todo.completed 
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                color: todo.completed 
-                                    ? Colors.green 
-                                    : Theme.of(context).colorScheme.primary,
-                                size: 20,
-                              ),
-                              title: Text(
-                                todo.title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  decoration: todo.completed 
-                                      ? TextDecoration.lineThrough 
-                                      : null,
-                                  color: todo.completed 
-                                      ? Colors.grey 
-                                      : null,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-            ),
-          ],
-        ),
+    return GlassInfoCard(
+      title: 'Tasks',
+      icon: Icon(
+        Icons.checklist_rounded,
+        color: DarkThemeData.successColor,
+        size: 20,
       ),
+      accentColor: DarkThemeData.successColor,
+      child: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: DarkThemeData.successColor,
+              ),
+            )
+          : _todoItems.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.task_alt_rounded,
+                        size: 32,
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No tasks yet',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _todoItems.length,
+                  separatorBuilder: (context, index) => const Divider(
+                    height: 1,
+                    thickness: 0.5,
+                    color: Color(0xFF334155),
+                  ),
+                  itemBuilder: (context, i) {
+                    final todo = _todoItems[i];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: todo.completed
+                                  ? DarkThemeData.successColor.withOpacity(0.1)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: todo.completed
+                                    ? DarkThemeData.successColor
+                                    : Theme.of(context).colorScheme.outline,
+                                width: 1,
+                              ),
+                            ),
+                            child: Icon(
+                              todo.completed
+                                  ? Icons.check_rounded
+                                  : Icons.radio_button_unchecked_rounded,
+                              color: todo.completed
+                                  ? DarkThemeData.successColor
+                                  : Theme.of(context).colorScheme.outline,
+                              size: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              todo.title,
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                decoration: todo.completed
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                color: todo.completed
+                                    ? Theme.of(context).textTheme.bodySmall?.color
+                                    : Theme.of(context).textTheme.titleSmall?.color,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

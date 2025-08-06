@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'core/theme/dark_theme.dart';
 import 'screens/dashboard_screen.dart';
-import 'services/ffi_bridge.dart';
 import 'services/cpp_bridge.dart';
+
+// Conditional imports for FFI (web uses stub)
+import 'services/ffi_bridge.dart' if (dart.library.html) 'services/ffi_bridge_web.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,13 +13,19 @@ Future<void> main() async {
   // Initialize backend engine once at app startup.
   bool inited = false;
   try {
-    if (FfiBridge.isSupported) {
-      inited = FfiBridge.initializeEngine();
-    } else {
+    if (kIsWeb) {
+      // Web platform - use CppBridge mock data
       inited = CppBridge.initializeEngine();
+    } else {
+      // Native platform - try FFI first, fallback to CppBridge
+      try {
+        inited = FfiBridge.initializeEngine();
+      } catch (_) {
+        inited = CppBridge.initializeEngine();
+      }
     }
   } catch (_) {
-    // Fallback to mock bridge if FFI loading fails
+    // Final fallback to mock bridge
     inited = CppBridge.initializeEngine();
   }
 

@@ -3,6 +3,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <ctime>
 
 using namespace dashboard;
 
@@ -91,8 +92,19 @@ MD_API const char* get_stream_data(const char* /*stream_id*/) {
 }
 
 MD_API const char* get_weather_data() {
-    static const char* sample_data = "{\"location\":\"City\",\"temperature\":22,\"conditions\":\"Sunny\"}";
-    return sample_data;
+    static std::string weather_json = R"({
+        "location": "San Francisco, CA",
+        "temperature": 18.5,
+        "conditions": "Partly Cloudy",
+        "humidity": 72,
+        "windSpeed": 12.3,
+        "pressure": 1013.2,
+        "visibility": 16.1,
+        "uvIndex": 4,
+        "icon": "partly-cloudy-day",
+        "lastUpdated": ")" + std::to_string(time(nullptr)) + R"("
+    })";
+    return weather_json.c_str();
 }
 
 MD_API int update_weather_location(const char* /*location*/) {
@@ -101,8 +113,39 @@ MD_API int update_weather_location(const char* /*location*/) {
 }
 
 MD_API const char* get_todo_data() {
-    static const char* sample_data = "[{\"id\":\"1\",\"title\":\"Sample task\",\"completed\":false}]";
-    return sample_data;
+    static std::string todo_json = R"([
+        {
+            "id": "1",
+            "title": "Complete dashboard redesign",
+            "completed": false,
+            "priority": "high",
+            "category": "Development",
+            "dueDate": ")" + std::to_string(time(nullptr) + 86400) + R"(",
+            "createdAt": ")" + std::to_string(time(nullptr) - 3600) + R"(",
+            "description": "Implement modern glassmorphism UI with better UX"
+        },
+        {
+            "id": "2",
+            "title": "Integrate real weather API",
+            "completed": false,
+            "priority": "medium",
+            "category": "Features",
+            "dueDate": ")" + std::to_string(time(nullptr) + 172800) + R"(",
+            "createdAt": ")" + std::to_string(time(nullptr) - 7200) + R"(",
+            "description": "Replace mock weather data with OpenWeatherMap API"
+        },
+        {
+            "id": "3",
+            "title": "Test FFI integration",
+            "completed": true,
+            "priority": "high",
+            "category": "Testing",
+            "dueDate": ")" + std::to_string(time(nullptr) - 3600) + R"(",
+            "createdAt": ")" + std::to_string(time(nullptr) - 14400) + R"(",
+            "description": "Verify C++ backend connects properly to Flutter frontend"
+        }
+    ])";
+    return todo_json.c_str();
 }
 
 MD_API int add_todo_item(const char* /*json_data*/) {
@@ -121,8 +164,45 @@ MD_API int delete_todo_item(const char* /*item_id*/) {
 }
 
 MD_API const char* get_mail_data() {
-    static const char* sample_data = "[{\"from\":\"sender@example.com\",\"subject\":\"Test\",\"read\":false}]";
-    return sample_data;
+    static std::string mail_json = R"([
+        {
+            "id": "1",
+            "from": "team@moderndashboard.io",
+            "fromName": "Modern Dashboard Team",
+            "subject": "🎉 Welcome to Your New Dashboard!",
+            "read": false,
+            "priority": "normal",
+            "timestamp": ")" + std::to_string(time(nullptr) - 900) + R"(",
+            "preview": "Your dashboard is now connected and ready to use. Explore the new features...",
+            "category": "updates",
+            "hasAttachments": false
+        },
+        {
+            "id": "2",
+            "from": "notifications@github.com",
+            "fromName": "GitHub",
+            "subject": "New release available: Modern Dashboard v2.0",
+            "read": true,
+            "priority": "low",
+            "timestamp": ")" + std::to_string(time(nullptr) - 7200) + R"(",
+            "preview": "A new version of Modern Dashboard is now available with improved...",
+            "category": "notifications",
+            "hasAttachments": true
+        },
+        {
+            "id": "3",
+            "from": "api@openweathermap.org",
+            "fromName": "OpenWeather API",
+            "subject": "API Usage Summary - Weather Data",
+            "read": true,
+            "priority": "low",
+            "timestamp": ")" + std::to_string(time(nullptr) - 25200) + R"(",
+            "preview": "Your monthly API usage report for weather data integration...",
+            "category": "api",
+            "hasAttachments": false
+        }
+    ])";
+    return mail_json.c_str();
 }
 
 MD_API int configure_mail_account(const char* /*json_config*/) {
