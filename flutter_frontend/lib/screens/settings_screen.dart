@@ -264,7 +264,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           Icon(
                             Icons.info_outline_rounded,
-                            color: DarkThemeData.infoColor,
+                            color: DarkThemeData.accentColor,
                             size: 24,
                           ),
                           const SizedBox(width: 12),
