@@ -267,7 +267,7 @@ class _DashboardLayoutState extends State<DashboardLayout>
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // Enhanced responsive layout
+                // Enhanced responsive layout with refresh indicator
                 int crossAxisCount = 2;
                 double childAspectRatio = 1.1;
                 
@@ -282,16 +282,28 @@ class _DashboardLayoutState extends State<DashboardLayout>
                   childAspectRatio = 0.8;
                 }
 
-                return GridView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    childAspectRatio: childAspectRatio,
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
-                  ),
-                  itemCount: _widgets.length,
-                  itemBuilder: (context, index) => _buildWidget(_widgets[index], index),
+                return Stack(
+                  children: [
+                    GridView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        childAspectRatio: childAspectRatio,
+                        crossAxisSpacing: 20,
+                        mainAxisSpacing: 20,
+                      ),
+                      itemCount: _widgets.length,
+                      itemBuilder: (context, index) => _buildWidget(_widgets[index], index),
+                    ),
+                    // Refresh overlay
+                    if (_isRefreshing)
+                      Container(
+                        color: Colors.black.withOpacity(0.1),
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
