@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 import '../widgets/dashboard/dashboard_layout.dart';
 import '../core/theme/dark_theme.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final GlobalKey<DashboardLayoutState> _dashboardKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -24,11 +31,28 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh Data',
-            onPressed: () {
-              // TODO: Implement refresh functionality
+          StreamBuilder<bool>(
+            stream: _dashboardKey.currentState?.refreshStream ?? Stream.value(false),
+            builder: (context, snapshot) {
+              final isRefreshing = snapshot.data ?? false;
+              return IconButton(
+                icon: isRefreshing
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.refresh_rounded),
+                tooltip: isRefreshing ? 'Refreshing...' : 'Refresh Data',
+                onPressed: isRefreshing ? null : () {
+                  _dashboardKey.currentState?.refreshData();
+                },
+              );
             },
           ),
           IconButton(
@@ -65,8 +89,8 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
           ),
-          child: const SafeArea(
-            child: DashboardLayout(),
+          child: SafeArea(
+            child: DashboardLayout(key: _dashboardKey),
           ),
         ),
       ),

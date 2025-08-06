@@ -33,6 +33,9 @@ class DashboardLayout extends StatefulWidget {
   State<DashboardLayout> createState() => _DashboardLayoutState();
 }
 
+// Make the state class accessible for refresh functionality
+typedef DashboardLayoutState = _DashboardLayoutState;
+
 class _DashboardLayoutState extends State<DashboardLayout> 
     with TickerProviderStateMixin {
   final List<WidgetConfig> _widgets = const [
@@ -66,6 +69,10 @@ class _DashboardLayoutState extends State<DashboardLayout>
   late AnimationController _slideAnimationController;
   late Animation<Offset> _slideAnimation;
   bool _isInitialized = false;
+  bool _isRefreshing = false;
+  
+  final StreamController<bool> _refreshController = StreamController<bool>.broadcast();
+  Stream<bool> get refreshStream => _refreshController.stream;
 
   @override
   void initState() {
@@ -93,18 +100,24 @@ class _DashboardLayoutState extends State<DashboardLayout>
     try {
       bool success = false;
       
-      // Try FFI first (will be stub on web), fallback to CppBridge
-      try {
+      if (kIsWeb) {
+        // On web, use FFI stub which now has rich data
         success = FfiBridge.initializeEngine();
-        if (!success || !FfiBridge.isSupported) {
+        debugPrint('Web platform initialized with FFI stub: $success');
+      } else {
+        // On native platforms, try FFI first, fallback to CppBridge
+        try {
+          success = FfiBridge.initializeEngine();
+          if (success && FfiBridge.isSupported) {
+            debugPrint('Native FFI Bridge initialized: $success');
+          } else {
+            success = CppBridge.initializeEngine();
+            debugPrint('Using CppBridge fallback: $success');
+          }
+        } catch (e) {
+          debugPrint('FFI Bridge failed: $e, using CppBridge fallback');
           success = CppBridge.initializeEngine();
-          debugPrint('Using CppBridge mock data: $success');
-        } else {
-          debugPrint('FFI Bridge initialized: $success');
         }
-      } catch (e) {
-        debugPrint('FFI Bridge failed: $e, falling back to CppBridge');
-        success = CppBridge.initializeEngine();
       }
       
       setState(() {
@@ -121,19 +134,50 @@ class _DashboardLayoutState extends State<DashboardLayout>
   void _startPeriodicUpdates() {
     _updateTimer?.cancel();
     _updateTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
+      if (mounted) refreshData();
     });
+  }
+
+  Future<void> refreshData() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isRefreshing = true;
+    });
+    _refreshController.add(true);
+
+    // Add a small delay to show the refresh animation
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Re-initialize backend to refresh data
+    _initializeBackend();
+    
+    if (mounted) {
+      setState(() {
+        _isRefreshing = false;
+      });
+      _refreshController.add(false);
+    }
   }
 
   @override
   void dispose() {
     _updateTimer?.cancel();
     _slideAnimationController.dispose();
+    _refreshController.close();
     try {
-      if (FfiBridge.isSupported) {
+      if (kIsWeb) {
         FfiBridge.shutdownEngine();
       } else {
-        CppBridge.shutdownEngine();
+        try {
+          if (FfiBridge.isSupported) {
+            FfiBridge.shutdownEngine();
+          } else {
+            CppBridge.shutdownEngine();
+          }
+        } catch (_) {
+          CppBridge.shutdownEngine();
+        }
       }
     } catch (e) {
       debugPrint('Failed to shutdown backend: $e');
