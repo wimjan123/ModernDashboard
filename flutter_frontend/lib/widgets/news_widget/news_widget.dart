@@ -35,7 +35,12 @@ class _NewsWidgetState extends State<NewsWidget> {
 
   Future<void> _loadNews() async {
     try {
-      final newsData = FfiBridge.isSupported ? FfiBridge.getNewsData() : CppBridge.getNewsData();
+      String newsData;
+      if (kIsWeb) {
+        newsData = FfiBridge.getNewsData();
+      } else {
+        newsData = FfiBridge.isSupported ? FfiBridge.getNewsData() : CppBridge.getNewsData();
+      }
       final List<dynamic> jsonData = json.decode(newsData) as List<dynamic>;
       setState(() {
         _isLoading = false;

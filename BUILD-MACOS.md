@@ -25,6 +25,24 @@ This script will:
 - Build the Flutter web app
 - Verify all builds completed successfully
 
+## Mock Data Mode (Recommended for Development/Demos)
+
+The macOS app can now run with rich, interactive mock data equivalent to the web stub. Use the `--mock` flag:
+
+```bash
+./build-macos.sh --mock
+```
+
+What this does:
+- Passes a Dart define `USE_MOCK_DATA=true` to the Flutter macOS build
+- The Dart FFI bridge detects the flag and routes all data calls to the shared MockDataService
+- No native library is loaded in mock mode, avoiding FFI issues during UI development
+
+Implementation details:
+- Switch controlled in [`dart.get _useMock()`](flutter_frontend/lib/services/ffi_bridge.dart:58)
+- Shared mock implementation lives in [`dart.class MockDataService()`](flutter_frontend/lib/services/mock_data_service.dart:1)
+- Web stub delegates to the same service in [`dart.class FfiBridge()`](flutter_frontend/lib/services/ffi_bridge_web.dart:1)
+
 ## Manual Build Steps
 
 If you prefer to build manually:
@@ -56,8 +74,11 @@ flutter pub get
 # Create macOS project structure (if not already present)
 flutter create --platforms=macos .
 
-# Build for macOS
+# Build for macOS (native mode)
 flutter build macos
+
+# Build for macOS (mock mode)
+flutter build macos --dart-define=USE_MOCK_DATA=true
 
 # Build for web
 flutter build web --no-tree-shake-icons

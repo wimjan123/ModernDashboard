@@ -45,7 +45,12 @@ class _WeatherWidgetState extends State<WeatherWidget> {
 
   Future<void> _loadWeather() async {
     try {
-      final weatherJson = FfiBridge.isSupported ? FfiBridge.getWeatherData() : CppBridge.getWeatherData();
+      String weatherJson;
+      if (kIsWeb) {
+        weatherJson = FfiBridge.getWeatherData();
+      } else {
+        weatherJson = FfiBridge.isSupported ? FfiBridge.getWeatherData() : CppBridge.getWeatherData();
+      }
       final Map<String, dynamic> jsonData = json.decode(weatherJson) as Map<String, dynamic>;
       
       setState(() {

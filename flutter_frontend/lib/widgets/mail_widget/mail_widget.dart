@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/cpp_bridge.dart';
 import '../common/glass_card.dart';
 import '../../core/theme/dark_theme.dart';
+
+// Conditional import for FFI (web uses stub)
+import '../../services/ffi_bridge.dart' if (dart.library.html) '../../services/ffi_bridge_web.dart';
 
 class MailMessage {
   final String from;
@@ -41,7 +45,12 @@ class _MailWidgetState extends State<MailWidget> {
 
   Future<void> _loadMail() async {
     try {
-      final mailJson = CppBridge.getMailData();
+      String mailJson;
+      if (kIsWeb) {
+        mailJson = FfiBridge.getMailData();
+      } else {
+        mailJson = FfiBridge.isSupported ? FfiBridge.getMailData() : CppBridge.getMailData();
+      }
       final List<dynamic> jsonData = json.decode(mailJson) as List<dynamic>;
       
       setState(() {

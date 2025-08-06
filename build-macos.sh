@@ -52,7 +52,13 @@ flutter create --platforms=macos .
 
 # Build Flutter for macOS
 echo "🔨 Building Flutter for macOS..."
-flutter build macos
+# Support optional --mock flag to enable demo data via dart-define
+USE_MOCK="false"
+if [[ "$1" == "--mock" ]]; then
+  USE_MOCK="true"
+  echo "🪄 Enabling mock data mode for macOS build"
+fi
+flutter build macos --dart-define=USE_MOCK_DATA=$USE_MOCK
 
 # Build Flutter for web as well
 echo "🌐 Building Flutter for web..."
