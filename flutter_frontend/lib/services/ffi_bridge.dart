@@ -1,6 +1,8 @@
 import 'dart:ffi' as ffi;
 import 'dart:io' show Platform;
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../services/mock_data_service.dart';
 
 // Native signatures (C ABI)
 typedef _init_native = ffi.Int32 Function();
@@ -49,19 +51,91 @@ class FfiBridge {
   static _noarg_str_dart? _getMailData;
   static _str_int_dart? _configureMailAccount;
 
-  static bool get isSupported => Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+  static bool get isSupported =>
+      Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+
+  static bool get _useMock {
+    // Prefer runtime dart-define, fallback to non-FFI platforms
+    const useMockDefine =
+        String.fromEnvironment('USE_MOCK_DATA', defaultValue: 'false');
+    final envFlag = useMockDefine.toLowerCase() == 'true';
+    // Web is handled by ffi_bridge_web.dart, but keep guard for completeness
+    if (kIsWeb) return true;
+    // Only allow mock on desktop targets
+    if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
+      return envFlag;
+    }
+    return envFlag;
+  }
 
   static void _ensureLoaded() {
+    if (_useMock) {
+      // Initialize shared mock once
+      MockDataService().initialize();
+      // Skip loading native libs entirely in mock mode
+      return;
+    }
     if (_lib != null) return;
 
-    if (Platform.isMacOS) {
-      _lib = ffi.DynamicLibrary.open('./moderndash.dylib');
-    } else if (Platform.isLinux) {
-      _lib = ffi.DynamicLibrary.open('./moderndash.so');
-    } else if (Platform.isWindows) {
-      _lib = ffi.DynamicLibrary.open('moderndash.dll');
-    } else {
-      throw UnsupportedError('FFI not supported on this platform');
+    try {
+      if (Platform.isMacOS) {
+        // Try multiple locations for the .dylib file
+        print('FFI: Attempting to load macOS library...');
+        try {
+          print('FFI: Trying ./moderndash.dylib');
+          _lib = ffi.DynamicLibrary.open('./moderndash.dylib');
+          print('FFI: ✅ Successfully loaded ./moderndash.dylib');
+        } catch (e) {
+          print('FFI: ❌ Failed ./moderndash.dylib: $e');
+          try {
+            print('FFI: Trying moderndash.dylib');
+            _lib = ffi.DynamicLibrary.open('moderndash.dylib');
+            print('FFI: ✅ Successfully loaded moderndash.dylib');
+          } catch (e) {
+            print('FFI: ❌ Failed moderndash.dylib: $e');
+            try {
+              print('FFI: Trying ../build/moderndash.dylib');
+              _lib = ffi.DynamicLibrary.open('../build/moderndash.dylib');
+              print('FFI: ✅ Successfully loaded ../build/moderndash.dylib');
+            } catch (e) {
+              print('FFI: ❌ Failed ../build/moderndash.dylib: $e');
+              try {
+                print('FFI: Trying ./build/moderndash.dylib');
+                _lib = ffi.DynamicLibrary.open('./build/moderndash.dylib');
+                print('FFI: ✅ Successfully loaded ./build/moderndash.dylib');
+              } catch (e) {
+                print('FFI: ❌ Failed ./build/moderndash.dylib: $e');
+                print('FFI: Trying /usr/local/lib/moderndash.dylib');
+                _lib = ffi.DynamicLibrary.open('/usr/local/lib/moderndash.dylib');
+                print('FFI: ✅ Successfully loaded /usr/local/lib/moderndash.dylib');
+              }
+            }
+          }
+        }
+      } else if (Platform.isLinux) {
+        // Try multiple possible locations for the library
+        try {
+          _lib = ffi.DynamicLibrary.open('./moderndash.so');
+        } catch (e) {
+          try {
+            _lib = ffi.DynamicLibrary.open('moderndash.so');
+          } catch (e) {
+            try {
+              _lib = ffi.DynamicLibrary.open('./libmoderndash.so');
+            } catch (e) {
+              _lib = ffi.DynamicLibrary.open('libmoderndash.so');
+            }
+          }
+        }
+      } else if (Platform.isWindows) {
+        _lib = ffi.DynamicLibrary.open('moderndash.dll');
+      } else {
+        throw UnsupportedError('FFI not supported on this platform');
+      }
+    } catch (e) {
+      // If library loading fails, this will cause isSupported to be false
+      // and the fallback to CppBridge will be used
+      throw Exception('Failed to load native library: $e');
     }
 
     // Use direct lookup with explicit NativeFunction<...> to satisfy bounds
@@ -135,19 +209,30 @@ class FfiBridge {
 
   // Public API
   static bool initializeEngine() {
-    _ensureLoaded();
-    final result = _initialize!.call();
-    return result != 0;
+    try {
+      _ensureLoaded();
+      if (_useMock) {
+        // Simulate engine online
+        return true;
+      }
+      final result = _initialize!.call();
+      return result != 0;
+    } catch (e) {
+      print('FFI initializeEngine failed: $e');
+      return false;
+    }
   }
 
   static bool shutdownEngine() {
     _ensureLoaded();
+    if (_useMock) return true;
     final result = _shutdown!.call();
     return result != 0;
   }
 
   static bool updateWidgetConfig(String widgetId, String configJson) {
     _ensureLoaded();
+    if (_useMock) return true;
     final wid = _asUtf8(widgetId);
     final cfg = _asUtf8(configJson);
     try {
@@ -161,13 +246,20 @@ class FfiBridge {
 
   // News
   static String getNewsData() {
-    _ensureLoaded();
-    final ptr = _getNewsData!.call();
-    return _toDartString(ptr);
+    try {
+      _ensureLoaded();
+      if (_useMock) return MockDataService().getNewsData();
+      final ptr = _getNewsData!.call();
+      return _toDartString(ptr);
+    } catch (e) {
+      print('FFI getNewsData failed: $e');
+      return '[]';
+    }
   }
 
   static bool addNewsFeed(String url) {
     _ensureLoaded();
+    if (_useMock) return true;
     final u = _asUtf8(url);
     try {
       final res = _addNewsFeed!.call(u);
@@ -179,6 +271,7 @@ class FfiBridge {
 
   static bool removeNewsFeed(String url) {
     _ensureLoaded();
+    if (_useMock) return true;
     final u = _asUtf8(url);
     try {
       final res = _removeNewsFeed!.call(u);
@@ -191,6 +284,7 @@ class FfiBridge {
   // Stream
   static bool startStream(String url) {
     _ensureLoaded();
+    if (_useMock) return true;
     final u = _asUtf8(url);
     try {
       final res = _startStream!.call(u);
@@ -202,6 +296,7 @@ class FfiBridge {
 
   static bool stopStream(String streamId) {
     _ensureLoaded();
+    if (_useMock) return true;
     final s = _asUtf8(streamId);
     try {
       final res = _stopStream!.call(s);
@@ -213,6 +308,7 @@ class FfiBridge {
 
   static String getStreamData(String streamId) {
     _ensureLoaded();
+    if (_useMock) return MockDataService().getStreamData();
     final s = _asUtf8(streamId);
     try {
       final ptr = _getStreamData!.call(s);
@@ -224,13 +320,20 @@ class FfiBridge {
 
   // Weather
   static String getWeatherData() {
-    _ensureLoaded();
-    final ptr = _getWeatherData!.call();
-    return _toDartString(ptr);
+    try {
+      _ensureLoaded();
+      if (_useMock) return MockDataService().getWeatherData();
+      final ptr = _getWeatherData!.call();
+      return _toDartString(ptr);
+    } catch (e) {
+      print('FFI getWeatherData failed: $e');
+      return '{}';
+    }
   }
 
   static bool updateWeatherLocation(String location) {
     _ensureLoaded();
+    if (_useMock) return true;
     final l = _asUtf8(location);
     try {
       final res = _updateWeatherLocation!.call(l);
@@ -242,13 +345,20 @@ class FfiBridge {
 
   // Todo
   static String getTodoData() {
-    _ensureLoaded();
-    final ptr = _getTodoData!.call();
-    return _toDartString(ptr);
+    try {
+      _ensureLoaded();
+      if (_useMock) return MockDataService().getTodoData();
+      final ptr = _getTodoData!.call();
+      return _toDartString(ptr);
+    } catch (e) {
+      print('FFI getTodoData failed: $e');
+      return '[]';
+    }
   }
 
   static bool addTodoItem(String jsonData) {
     _ensureLoaded();
+    if (_useMock) return MockDataService().addTodoItem(jsonData);
     final d = _asUtf8(jsonData);
     try {
       final res = _addTodoItem!.call(d);
@@ -260,6 +370,7 @@ class FfiBridge {
 
   static bool updateTodoItem(String jsonData) {
     _ensureLoaded();
+    if (_useMock) return MockDataService().updateTodoItem(jsonData);
     final d = _asUtf8(jsonData);
     try {
       final res = _updateTodoItem!.call(d);
@@ -271,6 +382,7 @@ class FfiBridge {
 
   static bool deleteTodoItem(String itemId) {
     _ensureLoaded();
+    if (_useMock) return MockDataService().deleteTodoItem(itemId);
     final i = _asUtf8(itemId);
     try {
       final res = _deleteTodoItem!.call(i);
@@ -282,13 +394,20 @@ class FfiBridge {
 
   // Mail
   static String getMailData() {
-    _ensureLoaded();
-    final ptr = _getMailData!.call();
-    return _toDartString(ptr);
+    try {
+      _ensureLoaded();
+      if (_useMock) return MockDataService().getMailData();
+      final ptr = _getMailData!.call();
+      return _toDartString(ptr);
+    } catch (e) {
+      print('FFI getMailData failed: $e');
+      return '[]';
+    }
   }
 
   static bool configureMailAccount(String jsonConfig) {
     _ensureLoaded();
+    if (_useMock) return true;
     final c = _asUtf8(jsonConfig);
     try {
       final res = _configureMailAccount!.call(c);
