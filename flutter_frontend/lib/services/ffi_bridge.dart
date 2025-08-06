@@ -79,38 +79,36 @@ class FfiBridge {
 
     try {
       if (Platform.isMacOS) {
-        // Try multiple locations for the .dylib file
+        // Try multiple locations for the .dylib file (including libmoderndash.dylib)
         print('FFI: Attempting to load macOS library...');
-        try {
-          print('FFI: Trying ./moderndash.dylib');
-          _lib = ffi.DynamicLibrary.open('./moderndash.dylib');
-          print('FFI: ✅ Successfully loaded ./moderndash.dylib');
-        } catch (e) {
-          print('FFI: ❌ Failed ./moderndash.dylib: $e');
+        final libPaths = [
+          './moderndash.dylib',
+          'moderndash.dylib', 
+          './libmoderndash.dylib',
+          'libmoderndash.dylib',
+          '../build/moderndash.dylib',
+          '../build/libmoderndash.dylib',
+          './build/moderndash.dylib',
+          './build/libmoderndash.dylib',
+          '/usr/local/lib/moderndash.dylib',
+          '/usr/local/lib/libmoderndash.dylib'
+        ];
+        
+        bool loaded = false;
+        for (final path in libPaths) {
           try {
-            print('FFI: Trying moderndash.dylib');
-            _lib = ffi.DynamicLibrary.open('moderndash.dylib');
-            print('FFI: ✅ Successfully loaded moderndash.dylib');
+            print('FFI: Trying $path');
+            _lib = ffi.DynamicLibrary.open(path);
+            print('FFI: ✅ Successfully loaded $path');
+            loaded = true;
+            break;
           } catch (e) {
-            print('FFI: ❌ Failed moderndash.dylib: $e');
-            try {
-              print('FFI: Trying ../build/moderndash.dylib');
-              _lib = ffi.DynamicLibrary.open('../build/moderndash.dylib');
-              print('FFI: ✅ Successfully loaded ../build/moderndash.dylib');
-            } catch (e) {
-              print('FFI: ❌ Failed ../build/moderndash.dylib: $e');
-              try {
-                print('FFI: Trying ./build/moderndash.dylib');
-                _lib = ffi.DynamicLibrary.open('./build/moderndash.dylib');
-                print('FFI: ✅ Successfully loaded ./build/moderndash.dylib');
-              } catch (e) {
-                print('FFI: ❌ Failed ./build/moderndash.dylib: $e');
-                print('FFI: Trying /usr/local/lib/moderndash.dylib');
-                _lib = ffi.DynamicLibrary.open('/usr/local/lib/moderndash.dylib');
-                print('FFI: ✅ Successfully loaded /usr/local/lib/moderndash.dylib');
-              }
-            }
+            print('FFI: ❌ Failed $path: $e');
           }
+        }
+        
+        if (!loaded) {
+          throw Exception('FFI: Could not load any .dylib variant. Tried: ${libPaths.join(', ')}');
         }
       } else if (Platform.isLinux) {
         // Try multiple possible locations for the library
@@ -210,15 +208,30 @@ class FfiBridge {
   // Public API
   static bool initializeEngine() {
     try {
+      print('FFI: initializeEngine() starting...');
       _ensureLoaded();
       if (_useMock) {
-        // Simulate engine online
+        print('FFI: Using mock mode (USE_MOCK_DATA=true)');
         return true;
       }
+      
+      if (_lib == null) {
+        print('FFI: ❌ Library not loaded, cannot initialize');
+        return false;
+      }
+      
+      if (_initialize == null) {
+        print('FFI: ❌ initialize_dashboard_engine function not found');
+        return false;
+      }
+      
+      print('FFI: Calling native initialize_dashboard_engine()...');
       final result = _initialize!.call();
-      return result != 0;
+      final success = result != 0;
+      print('FFI: initialize_dashboard_engine() returned: $result (success: $success)');
+      return success;
     } catch (e) {
-      print('FFI initializeEngine failed: $e');
+      print('FFI: ❌ initializeEngine failed with exception: $e');
       return false;
     }
   }
@@ -247,12 +260,30 @@ class FfiBridge {
   // News
   static String getNewsData() {
     try {
+      print('FFI: getNewsData() called');
       _ensureLoaded();
-      if (_useMock) return MockDataService().getNewsData();
+      if (_useMock) {
+        print('FFI: Using mock data for news');
+        return MockDataService().getNewsData();
+      }
+      
+      if (_lib == null) {
+        print('FFI: ❌ Library not loaded for getNewsData');
+        return '[]';
+      }
+      
+      if (_getNewsData == null) {
+        print('FFI: ❌ get_news_data function not found');
+        return '[]';
+      }
+      
+      print('FFI: Calling native get_news_data()...');
       final ptr = _getNewsData!.call();
-      return _toDartString(ptr);
+      final result = _toDartString(ptr);
+      print('FFI: get_news_data() returned ${result.length} chars: ${result.substring(0, result.length.clamp(0, 100))}${result.length > 100 ? '...' : ''}');
+      return result;
     } catch (e) {
-      print('FFI getNewsData failed: $e');
+      print('FFI: ❌ getNewsData failed: $e');
       return '[]';
     }
   }

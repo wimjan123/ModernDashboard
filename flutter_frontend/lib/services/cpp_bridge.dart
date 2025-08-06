@@ -1,31 +1,35 @@
 import 'package:flutter/foundation.dart';
-import 'mock_data_service.dart';
 
 class CppBridge {
   static String getNewsData() {
-    // Use shared mock service for consistency across platforms
-    return MockDataService().getNewsData();
+    // CppBridge fallback - return empty to make FFI failure obvious
+    debugPrint('CppBridge: getNewsData() called - FFI failed, no native data available');
+    return '[]';
   }
 
   static String getWeatherData() {
-    return MockDataService().getWeatherData();
+    debugPrint('CppBridge: getWeatherData() called - FFI failed, no native data available');
+    return '{}';
   }
 
   static String getTodoData() {
-    return MockDataService().getTodoData();
+    debugPrint('CppBridge: getTodoData() called - FFI failed, no native data available');
+    return '[]';
   }
 
   static String getMailData() {
-    return MockDataService().getMailData();
+    debugPrint('CppBridge: getMailData() called - FFI failed, no native data available');
+    return '[]';
   }
 
   static bool startStream(String streamUrl) {
-    return true; // Simulate success
+    debugPrint('CppBridge: startStream() called - FFI failed, cannot start stream');
+    return false;
   }
 
   static bool initializeEngine() {
-    MockDataService().initialize();
-    return true;
+    debugPrint('CppBridge: initializeEngine() called - this indicates FFI loading failed');
+    return false; // Return false to indicate failure
   }
 
   static bool shutdownEngine() {
@@ -34,14 +38,17 @@ class CppBridge {
   
   // Add todo management methods for compatibility
   static bool updateTodoItem(String jsonData) {
-    return MockDataService().updateTodoItem(jsonData);
+    debugPrint('CppBridge: updateTodoItem() called - FFI failed, cannot update todos');
+    return false;
   }
   
   static bool addTodoItem(String jsonData) {
-    return MockDataService().addTodoItem(jsonData);
+    debugPrint('CppBridge: addTodoItem() called - FFI failed, cannot add todos');
+    return false;
   }
   
   static bool deleteTodoItem(String itemId) {
-    return MockDataService().deleteTodoItem(itemId);
+    debugPrint('CppBridge: deleteTodoItem() called - FFI failed, cannot delete todos');
+    return false;
   }
 }

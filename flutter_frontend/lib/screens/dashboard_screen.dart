@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/dashboard/dashboard_layout.dart';
 import '../core/theme/dark_theme.dart';
+import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -59,7 +60,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.settings_rounded),
             tooltip: 'Settings',
             onPressed: () {
-              // TODO: Implement settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
             },
           ),
           const SizedBox(width: 8),

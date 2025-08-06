@@ -31,7 +31,14 @@ ls -la "$DYLIB_PATH"
 # Step 2: Copy library to Flutter directory (where FFI will look for it)
 echo "📂 Copying library to Flutter directory..."
 cp "$DYLIB_PATH" flutter_frontend/moderndash.dylib
-echo "✅ Copied to flutter_frontend/moderndash.dylib"
+
+# Also copy with the lib prefix if the original has it
+if [[ "$DYLIB_PATH" == *"libmoderndash"* ]]; then
+    cp "$DYLIB_PATH" flutter_frontend/libmoderndash.dylib
+    echo "✅ Copied to flutter_frontend/libmoderndash.dylib and flutter_frontend/moderndash.dylib"
+else
+    echo "✅ Copied to flutter_frontend/moderndash.dylib"
+fi
 
 # Step 3: Enable macOS desktop and get dependencies
 echo "📱 Setting up Flutter for macOS..."
