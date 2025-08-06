@@ -16,6 +16,7 @@ add_library(dashboard_backend SHARED ${SOURCES})
 
 target_include_directories(dashboard_backend PRIVATE
     cpp_backend/include
+    shared
 )
 
 target_link_libraries(dashboard_backend

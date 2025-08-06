@@ -1,5 +1,4 @@
 #include "core/dashboard_engine.h"
-#include "../../../shared/ffi_interface.h"
 #include <memory>
 #include <mutex>
 
