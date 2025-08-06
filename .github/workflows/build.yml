@@ -60,12 +60,7 @@ jobs:
       working-directory: flutter_frontend
       run: flutter build web --no-tree-shake-icons
     
-    - name: Build Flutter Linux
-      working-directory: flutter_frontend
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev jq
-        flutter build linux
+    # Linux build removed - focusing on web and native builds per requirements
     
     - name: Test build artifacts
       working-directory: flutter_frontend
@@ -73,18 +68,10 @@ jobs:
         echo "Checking build artifacts..."
         echo "Web build:"
         ls -la build/web/ || echo "No web build found"
-        echo "Linux build:"
-        ls -la build/linux/x64/release/bundle/ || echo "No linux build found"
         if [ -f "build/web/index.html" ]; then
           echo "✅ Flutter web built successfully"
         else
           echo "❌ Flutter web build failed"
-          exit 1
-        fi
-        if [ -f "build/linux/x64/release/bundle/modern_dashboard" ]; then
-          echo "✅ Flutter linux built successfully"
-        else
-          echo "❌ Flutter linux build failed"
           exit 1
         fi
 
@@ -117,7 +104,7 @@ jobs:
       working-directory: flutter_frontend
       run: |
         flutter pub get
-        flutter build linux
+        flutter build web --no-tree-shake-icons
     
     - name: Verify integration
       run: |
