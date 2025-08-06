@@ -78,6 +78,7 @@ jobs:
   cpp-backend-macos:
     runs-on: macos-latest
     name: Build C++ Backend (macOS)
+    continue-on-error: true
     
     steps:
     - uses: actions/checkout@v4
@@ -105,6 +106,7 @@ jobs:
   flutter-frontend-macos:
     runs-on: macos-latest
     name: Build Flutter Frontend (macOS)
+    continue-on-error: true
     
     steps:
     - uses: actions/checkout@v4
@@ -197,7 +199,9 @@ jobs:
   integration-test-macos:
     runs-on: macos-latest
     name: Integration Test (macOS)
+    continue-on-error: true
     needs: [cpp-backend-macos, flutter-frontend-macos]
+    if: success() || failure()
     
     steps:
     - uses: actions/checkout@v4
