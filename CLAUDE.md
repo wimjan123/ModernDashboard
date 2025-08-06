@@ -31,6 +31,21 @@ flutter build web --no-tree-shake-icons
 ```
 
 #### macOS (Local Development)
+
+**🎯 NEW: For Full Dashboard Functionality:**
+```bash
+# Use the new script with mock data enabled (RECOMMENDED)
+./build-macos-with-mock.sh
+
+# Or manual build with mock data
+cd flutter_frontend
+flutter config --enable-macos-desktop
+flutter pub get
+flutter create --platforms=macos .
+flutter build macos --dart-define USE_MOCK_DATA=true
+```
+
+**Legacy build (limited functionality):**
 ```bash
 # Use automated script
 ./build-macos.sh
