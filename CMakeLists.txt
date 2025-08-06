@@ -18,9 +18,11 @@ file(GLOB_RECURSE HEADERS "cpp_backend/include/*.h")
 add_library(moderndash SHARED ${SOURCES})
 target_compile_definitions(moderndash PRIVATE MODERNDASH_BUILD)
 
-target_include_directories(moderndash PRIVATE
-    cpp_backend/include
-    shared
+# Make include paths visible to dependents as well (fixes header resolution like shared/ffi_interface.h)
+target_include_directories(moderndash
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_backend/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/shared
 )
 
 target_link_libraries(moderndash
@@ -58,8 +60,8 @@ endif()
 # Test executable linking against the shared library (ensure it does not define symbols separately)
 add_executable(ModernDashboard cpp_backend/src/main.cpp)
 target_include_directories(ModernDashboard PRIVATE
-    cpp_backend/include
-    shared
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpp_backend/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared
 )
 # Ensure the executable links to the shared library C API, avoiding duplicate symbol issues
 target_link_libraries(ModernDashboard moderndash)
