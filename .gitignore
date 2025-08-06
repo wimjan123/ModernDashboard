@@ -1,0 +1,70 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# C++ Build artifacts
+build/
+.cxx/
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+.pub-cache/
+.pub/
+build/
+flutter_*.png
+flutter_*.icns
+.flutter/
+ephemeral/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Platform specific
+.gradle/
+.android/
+.ios/
+.macos/
+.windows/
+.linux/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Secrets and environment
+.env
+*.key
+*.pem
+secrets/
+credentials/
+
+# Logs
+*.log
+
+# Claude Code
+.claude/
+.crush/
