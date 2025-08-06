@@ -24,7 +24,7 @@ bool DashboardEngine::Initialize() {
     }
     
     // Register default widgets
-    RegisterWidget<services::NewsService>("news");
+    RegisterWidget<services::NewsWidget>("news");
     
     running_ = true;
     

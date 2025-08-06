@@ -1,4 +1,4 @@
-`# Claude Code Project Information
+# Claude Code Project Information
 
 This file contains important information for Claude Code about the Modern Dashboard project, including build instructions, common issues, and project structure.
 During coding, don't forget to git push in between steps
@@ -245,3 +245,5 @@ flutter clean
 flutter pub get
 flutter config --enable-macos-desktop  # for macOS
 ```
+
+- **Development Note**: Always remember to `git push` in between tasks/steps

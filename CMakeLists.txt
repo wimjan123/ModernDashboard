@@ -9,6 +9,8 @@ find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
 pkg_check_modules(CURL REQUIRED libcurl)
+pkg_check_modules(TINYXML2 REQUIRED tinyxml2)
+pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 
 # Source and header discovery
 file(GLOB_RECURSE SOURCES "cpp_backend/src/*.cpp")
@@ -24,10 +26,14 @@ target_include_directories(moderndash
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp_backend/include
         ${CMAKE_CURRENT_SOURCE_DIR}/shared
+        ${TINYXML2_INCLUDE_DIRS}
+        ${SQLITE3_INCLUDE_DIRS}
 )
 
 target_link_libraries(moderndash
     ${CURL_LIBRARIES}
+    ${TINYXML2_LIBRARIES}
+    ${SQLITE3_LIBRARIES}
     OpenSSL::SSL
     OpenSSL::Crypto
     nlohmann_json::nlohmann_json

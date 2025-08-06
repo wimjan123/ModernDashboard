@@ -1,6 +1,7 @@
 #include "export.h"
 #include "core/dashboard_engine.h"
 #include "services/weather_service.h"
+#include "services/news_service.h"
 #include "ffi_interface.h"
 #include <memory>
 #include <mutex>
@@ -13,9 +14,11 @@ using namespace dashboard;
 namespace {
     std::unique_ptr<core::DashboardEngine> g_engine;
     std::unique_ptr<dashboard::services::WeatherService> g_weather_service;
+    std::unique_ptr<dashboard::services::NewsService> g_news_service;
     std::string g_current_weather_location = "San Francisco,CA,US";
     std::mutex g_engine_mutex;
     std::mutex g_weather_mutex;
+    std::mutex g_news_mutex;
     
     // Initialize weather service if not already done
     void ensure_weather_service_initialized() {
@@ -33,6 +36,18 @@ namespace {
             if (!g_weather_service->initialize(api_key, 
                                               dashboard::services::WeatherService::Units::METRIC, 
                                               "en")) {
+                // If initialization fails, keep service for graceful error handling
+                // The service will return appropriate error responses
+            }
+        }
+    }
+    
+    // Initialize news service if not already done
+    void ensure_news_service_initialized() {
+        if (!g_news_service) {
+            g_news_service = std::make_unique<dashboard::services::NewsService>();
+            
+            if (!g_news_service->initialize()) {
                 // If initialization fails, keep service for graceful error handling
                 // The service will return appropriate error responses
             }
@@ -74,34 +89,76 @@ MD_API int shutdown_dashboard_engine() {
 }
 
 MD_API const char* get_news_data() {
-    std::lock_guard<std::mutex> lock(g_engine_mutex);
-
-    if (!g_engine) {
-        // Auto-initialize if not done yet
-        g_engine = std::make_unique<core::DashboardEngine>();
-        if (g_engine->Initialize()) {
-            g_engine->StartWidget("news");
-        }
+    std::lock_guard<std::mutex> lock(g_news_mutex);
+    
+    ensure_news_service_initialized();
+    
+    if (!g_news_service) {
+        // Fallback to mock data if service creation failed
+        static std::string news_json = R"([
+            {
+                "id": "1",
+                "title": "Technology News Update",
+                "description": "Latest developments in technology and innovation",
+                "link": "https://example.com/tech-news",
+                "source": "Tech News",
+                "author": "Tech Reporter",
+                "category": "Technology",
+                "published_date": )" + std::to_string(time(nullptr) - 3600) + R"(,
+                "cached_at": )" + std::to_string(time(nullptr)) + R"(
+            },
+            {
+                "id": "2", 
+                "title": "Global Market Analysis",
+                "description": "Current market trends and financial insights",
+                "link": "https://example.com/market-analysis",
+                "source": "Finance Today",
+                "author": "Market Analyst",
+                "category": "Finance", 
+                "published_date": )" + std::to_string(time(nullptr) - 7200) + R"(,
+                "cached_at": )" + std::to_string(time(nullptr)) + R"(
+            }
+        ])";
+        return news_json.c_str();
     }
-
-    if (g_engine) {
-        static std::string cached_data;
-        cached_data = g_engine->GetWidgetData("news");
-        return cached_data.c_str();
-    }
-
-    static const char* empty_json = "[]";
-    return empty_json;
+    
+    // Get latest news from the service
+    static std::string cached_news_data;
+    cached_news_data = g_news_service->getLatestNews(false);
+    
+    return cached_news_data.c_str();
 }
 
 MD_API int add_news_feed(const char* url) {
-    // TODO: Implement news feed management
-    return url ? 1 : 0;
+    if (!url) {
+        return 0;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_news_mutex);
+    
+    ensure_news_service_initialized();
+    
+    if (!g_news_service) {
+        return 0;
+    }
+    
+    return g_news_service->addFeed(std::string(url)) ? 1 : 0;
 }
 
 MD_API int remove_news_feed(const char* url) {
-    // TODO: Implement news feed management
-    return url ? 1 : 0;
+    if (!url) {
+        return 0;
+    }
+    
+    std::lock_guard<std::mutex> lock(g_news_mutex);
+    
+    ensure_news_service_initialized();
+    
+    if (!g_news_service) {
+        return 0;
+    }
+    
+    return g_news_service->removeFeed(std::string(url)) ? 1 : 0;
 }
 
 MD_API int start_stream(const char* /*url*/) {
