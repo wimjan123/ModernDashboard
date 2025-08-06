@@ -51,6 +51,6 @@ class FfiBridge {
     _ensureLoaded();
     final ffi.Pointer<ffi.Char> ptr = _getNewsData!.call();
     // Convert zero-terminated C string to Dart string using package:ffi
-    return pkg_ffi.cstrToDartString(ptr);
+    return ptr.cast<Utf8>().toDartString();
   }
 }
