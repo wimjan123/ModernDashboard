@@ -1,0 +1,117 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  cpp-backend:
+    runs-on: ubuntu-latest
+    name: Build C++ Backend
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libcurl4-openssl-dev nlohmann-json3-dev
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --config Release
+    
+    - name: Test build artifacts
+      run: |
+        ls -la build/
+        if [ -f "build/ModernDashboard" ]; then
+          echo "✅ C++ backend built successfully"
+        else
+          echo "❌ C++ backend build failed"
+          exit 1
+        fi
+
+  flutter-frontend:
+    runs-on: ubuntu-latest
+    name: Build Flutter Frontend
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.16.0'
+        channel: 'stable'
+    
+    - name: Get Flutter dependencies
+      working-directory: flutter_frontend
+      run: flutter pub get
+    
+    - name: Analyze Flutter code
+      working-directory: flutter_frontend
+      run: flutter analyze
+    
+    - name: Build Flutter web
+      working-directory: flutter_frontend
+      run: flutter build web
+    
+    - name: Build Flutter Linux
+      working-directory: flutter_frontend
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+        flutter build linux
+    
+    - name: Test build artifacts
+      working-directory: flutter_frontend
+      run: |
+        echo "Checking build artifacts..."
+        ls -la build/web/
+        ls -la build/linux/x64/release/bundle/
+        if [ -f "build/web/index.html" ] && [ -f "build/linux/x64/release/bundle/modern_dashboard" ]; then
+          echo "✅ Flutter frontend built successfully"
+        else
+          echo "❌ Flutter frontend build failed"
+          exit 1
+        fi
+
+  integration-test:
+    runs-on: ubuntu-latest
+    name: Integration Test
+    needs: [cpp-backend, flutter-frontend]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential libcurl4-openssl-dev nlohmann-json3-dev
+        sudo apt-get install -y clang ninja-build pkg-config libgtk-3-dev liblzma-dev
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.16.0'
+        channel: 'stable'
+    
+    - name: Build C++ Backend
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+    
+    - name: Build Flutter Frontend
+      working-directory: flutter_frontend
+      run: |
+        flutter pub get
+        flutter build linux
+    
+    - name: Verify integration
+      run: |
+        echo "✅ Both C++ backend and Flutter frontend built successfully"
+        echo "🎉 Project is buildable!"
