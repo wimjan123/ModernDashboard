@@ -2,26 +2,19 @@ import 'dart:ffi' as ffi;
 import 'dart:io' show Platform;
 import 'package:ffi/ffi.dart';
 
-// Common typedefs
+// Native signatures (C ABI)
 typedef _init_native = ffi.Int32 Function();
-typedef _init_dart = int Function();
-
 typedef _ptr_char = ffi.Pointer<ffi.Char>;
-
-// Functions with no args returning const char*
 typedef _noarg_str_native = _ptr_char Function();
-typedef _noarg_str_dart = _ptr_char Function();
-
-// Functions taking (const char*) and returning int
 typedef _str_int_native = ffi.Int32 Function(_ptr_char);
-typedef _str_int_dart = int Function(_ptr_char);
-
-// Functions taking (const char*, const char*) and returning int
 typedef _str_str_int_native = ffi.Int32 Function(_ptr_char, _ptr_char);
-typedef _str_str_int_dart = int Function(_ptr_char, _ptr_char);
-
-// Functions taking (const char*) and returning const char*
 typedef _str_str_native = _ptr_char Function(_ptr_char);
+
+// Dart typedefs
+typedef _init_dart = int Function();
+typedef _noarg_str_dart = _ptr_char Function();
+typedef _str_int_dart = int Function(_ptr_char);
+typedef _str_str_int_dart = int Function(_ptr_char, _ptr_char);
 typedef _str_str_dart = _ptr_char Function(_ptr_char);
 
 class FfiBridge {
@@ -56,7 +49,6 @@ class FfiBridge {
   static _noarg_str_dart? _getMailData;
   static _str_int_dart? _configureMailAccount;
 
-  // Platform support
   static bool get isSupported => Platform.isMacOS || Platform.isLinux || Platform.isWindows;
 
   static void _ensureLoaded() {
@@ -72,43 +64,65 @@ class FfiBridge {
       throw UnsupportedError('FFI not supported on this platform');
     }
 
-    // Core
-    _initialize = _lookup<_init_native, _init_dart>('initialize_dashboard_engine');
-    _shutdown = _lookup<_init_native, _init_dart>('shutdown_dashboard_engine');
-    _updateWidgetConfig = _lookup<_str_str_int_native, _str_str_int_dart>('update_widget_config');
+    // Use direct lookup with explicit NativeFunction<...> to satisfy bounds
+    _initialize = _lib!
+        .lookup<ffi.NativeFunction<_init_native>>('initialize_dashboard_engine')
+        .asFunction<_init_dart>();
+    _shutdown = _lib!
+        .lookup<ffi.NativeFunction<_init_native>>('shutdown_dashboard_engine')
+        .asFunction<_init_dart>();
+    _updateWidgetConfig = _lib!
+        .lookup<ffi.NativeFunction<_str_str_int_native>>('update_widget_config')
+        .asFunction<_str_str_int_dart>();
 
-    // News
-    _getNewsData = _lookup<_noarg_str_native, _noarg_str_dart>('get_news_data');
-    _addNewsFeed = _lookup<_str_int_native, _str_int_dart>('add_news_feed');
-    _removeNewsFeed = _lookup<_str_int_native, _str_int_dart>('remove_news_feed');
+    _getNewsData = _lib!
+        .lookup<ffi.NativeFunction<_noarg_str_native>>('get_news_data')
+        .asFunction<_noarg_str_dart>();
+    _addNewsFeed = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('add_news_feed')
+        .asFunction<_str_int_dart>();
+    _removeNewsFeed = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('remove_news_feed')
+        .asFunction<_str_int_dart>();
 
-    // Stream
-    _startStream = _lookup<_str_int_native, _str_int_dart>('start_stream');
-    _stopStream = _lookup<_str_int_native, _str_int_dart>('stop_stream');
-    _getStreamData = _lookup<_str_str_native, _str_str_dart>('get_stream_data');
+    _startStream = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('start_stream')
+        .asFunction<_str_int_dart>();
+    _stopStream = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('stop_stream')
+        .asFunction<_str_int_dart>();
+    _getStreamData = _lib!
+        .lookup<ffi.NativeFunction<_str_str_native>>('get_stream_data')
+        .asFunction<_str_str_dart>();
 
-    // Weather
-    _getWeatherData = _lookup<_noarg_str_native, _noarg_str_dart>('get_weather_data');
-    _updateWeatherLocation = _lookup<_str_int_native, _str_int_dart>('update_weather_location');
+    _getWeatherData = _lib!
+        .lookup<ffi.NativeFunction<_noarg_str_native>>('get_weather_data')
+        .asFunction<_noarg_str_dart>();
+    _updateWeatherLocation = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('update_weather_location')
+        .asFunction<_str_int_dart>();
 
-    // Todo
-    _getTodoData = _lookup<_noarg_str_native, _noarg_str_dart>('get_todo_data');
-    _addTodoItem = _lookup<_str_int_native, _str_int_dart>('add_todo_item');
-    _updateTodoItem = _lookup<_str_int_native, _str_int_dart>('update_todo_item');
-    _deleteTodoItem = _lookup<_str_int_native, _str_int_dart>('delete_todo_item');
+    _getTodoData = _lib!
+        .lookup<ffi.NativeFunction<_noarg_str_native>>('get_todo_data')
+        .asFunction<_noarg_str_dart>();
+    _addTodoItem = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('add_todo_item')
+        .asFunction<_str_int_dart>();
+    _updateTodoItem = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('update_todo_item')
+        .asFunction<_str_int_dart>();
+    _deleteTodoItem = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('delete_todo_item')
+        .asFunction<_str_int_dart>();
 
-    // Mail
-    _getMailData = _lookup<_noarg_str_native, _noarg_str_dart>('get_mail_data');
-    _configureMailAccount = _lookup<_str_int_native, _str_int_dart>('configure_mail_account');
+    _getMailData = _lib!
+        .lookup<ffi.NativeFunction<_noarg_str_native>>('get_mail_data')
+        .asFunction<_noarg_str_dart>();
+    _configureMailAccount = _lib!
+        .lookup<ffi.NativeFunction<_str_int_native>>('configure_mail_account')
+        .asFunction<_str_int_dart>();
   }
 
-  static TFunc _lookup<TNative extends ffi.NativeType, TFunc extends Function>(String symbol) {
-    return _lib!
-        .lookup<ffi.NativeFunction<TNative>>(symbol)
-        .asFunction<TFunc>();
-  }
-
-  // Helpers
   static String _toDartString(_ptr_char ptr) {
     if (ptr == ffi.nullptr) return '';
     return ptr.cast<Utf8>().toDartString();
@@ -120,8 +134,6 @@ class FfiBridge {
   }
 
   // Public API
-
-  // Core
   static bool initializeEngine() {
     _ensureLoaded();
     final result = _initialize!.call();
