@@ -237,39 +237,19 @@ public:
      */
     nlohmann::json todoItemToJson(const TodoItem& item) const;
 
-private:
-    /**
-     * @brief Create database schema if it doesn't exist
-     * @return true if schema creation/validation successful
-     */
-    bool createSchema();
-
-    /**
-     * @brief Execute SQL query with parameters
-     * @param sql SQL statement
-     * @param bind_func Function to bind parameters to statement
-     * @return OperationResult with execution status
-     */
-    OperationResult executeSql(const std::string& sql, 
-                              std::function<void(sqlite3_stmt*)> bind_func = nullptr);
-
-    /**
-     * @brief Execute SELECT query and process results
-     * @param sql SELECT statement
-     * @param bind_func Function to bind parameters
-     * @param process_func Function to process each result row
-     * @return true if query executed successfully
-     */
-    bool executeQuery(const std::string& sql,
-                     std::function<void(sqlite3_stmt*)> bind_func,
-                     std::function<void(sqlite3_stmt*)> process_func) const;
-
     /**
      * @brief Convert JSON object to TodoItem
      * @param json JSON object to convert
      * @return TodoItem object
      */
     TodoItem jsonToTodoItem(const nlohmann::json& json) const;
+
+private:
+    /**
+     * @brief Create database schema if it doesn't exist
+     * @return true if schema creation/validation successful
+     */
+    bool createSchema();
 
     /**
      * @brief Convert Priority enum to string

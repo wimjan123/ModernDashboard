@@ -1,5 +1,6 @@
 #include "core/dashboard_engine.h"
 #include "services/news_service.h"
+#include "services/todo_service.h"
 #include <thread>
 
 namespace dashboard {
@@ -25,6 +26,7 @@ bool DashboardEngine::Initialize() {
     
     // Register default widgets
     RegisterWidget<services::NewsWidget>("news");
+    RegisterWidget<services::TodoWidget>("todo");
     
     running_ = true;
     

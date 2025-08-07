@@ -13,7 +13,7 @@ pkg_check_modules(TINYXML2 REQUIRED tinyxml2)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 
 # Source and header discovery
-file(GLOB_RECURSE SOURCES "cpp_backend/src/*.cpp")
+file(GLOB_RECURSE SOURCES "cpp_backend/src/*.cpp" "cpp_backend/src/services/news_service.cpp" "cpp_backend/src/services/weather_service.cpp" "cpp_backend/src/services/todo_service.cpp" "cpp_backend/src/services/mail_service.cpp" "cpp_backend/src/services/stream_service.cpp")
 file(GLOB_RECURSE HEADERS "cpp_backend/include/*.h")
 
 # Create shared library target for FFI: moderndash

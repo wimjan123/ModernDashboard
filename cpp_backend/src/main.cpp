@@ -2,6 +2,9 @@
 #include "core/dashboard_engine.h"
 #include "services/weather_service.h"
 #include "services/news_service.h"
+#include "services/todo_service.h"
+#include "services/mail_service.h"
+#include "services/stream_service.h"
 #include "ffi_interface.h"
 #include <memory>
 #include <mutex>
@@ -15,10 +18,16 @@ namespace {
     std::unique_ptr<core::DashboardEngine> g_engine;
     std::unique_ptr<dashboard::services::WeatherService> g_weather_service;
     std::unique_ptr<dashboard::services::NewsService> g_news_service;
+    std::unique_ptr<dashboard::services::TodoService> g_todo_service;
+    std::unique_ptr<dashboard::services::MailService> g_mail_service;
+    std::unique_ptr<dashboard::services::StreamService> g_stream_service;
     std::string g_current_weather_location = "San Francisco,CA,US";
     std::mutex g_engine_mutex;
     std::mutex g_weather_mutex;
     std::mutex g_news_mutex;
+    std::mutex g_todo_mutex;
+    std::mutex g_mail_mutex;
+    std::mutex g_stream_mutex;
     
     // Initialize weather service if not already done
     void ensure_weather_service_initialized() {
@@ -53,6 +62,38 @@ namespace {
             }
         }
     }
+
+    // Initialize todo service if not already done
+    void ensure_todo_service_initialized() {
+        if (!g_todo_service) {
+            g_todo_service = std::make_unique<dashboard::services::TodoService>();
+            if (!g_todo_service->initialize("todos.db")) {
+                // Handle initialization failure
+            }
+        }
+    }
+
+    void ensure_mail_service_initialized() {
+        if (!g_mail_service) {
+            g_mail_service = std::make_unique<dashboard::services::MailService>();
+            // In a real application, you would load the account from a secure store.
+            dashboard::services::MailService::MailAccount account;
+            account.email_address = "user@example.com";
+            account.password = "password";
+            account.imap_server = "imap.example.com";
+            account.imap_port = 993;
+            account.use_ssl = true;
+            if (!g_mail_service->initialize(account)) {
+                // Handle initialization failure
+            }
+        }
+    }
+
+    void ensure_stream_service_initialized() {
+        if (!g_stream_service) {
+            g_stream_service = std::make_unique<dashboard::services::StreamService>();
+        }
+    }
 }
 
 // Implement the C ABI declared in shared/ffi_interface.h
@@ -73,6 +114,8 @@ MD_API int initialize_dashboard_engine() {
 
     // Start the news widget by default
     g_engine->StartWidget("news");
+    g_engine->StartWidget("todo");
+
 
     return 1;
 }
@@ -161,19 +204,34 @@ MD_API int remove_news_feed(const char* url) {
     return g_news_service->removeFeed(std::string(url)) ? 1 : 0;
 }
 
-MD_API int start_stream(const char* /*url*/) {
-    // TODO: Implement stream service
-    return 0;
+MD_API int start_stream(const char* url) {
+    std::lock_guard<std::mutex> lock(g_stream_mutex);
+    ensure_stream_service_initialized();
+    if (!g_stream_service || !url) {
+        return 0;
+    }
+    return g_stream_service->startStream(url) ? 1 : 0;
 }
 
-MD_API int stop_stream(const char* /*stream_id*/) {
-    // TODO: Implement stream service
-    return 0;
+MD_API int stop_stream(const char* stream_id) {
+    std::lock_guard<std::mutex> lock(g_stream_mutex);
+    ensure_stream_service_initialized();
+    if (!g_stream_service || !stream_id) {
+        return 0;
+    }
+    g_stream_service->stopStream(stream_id);
+    return 1;
 }
 
-MD_API const char* get_stream_data(const char* /*stream_id*/) {
-    static const char* empty_json = "{}";
-    return empty_json;
+MD_API const char* get_stream_data(const char* stream_id) {
+    std::lock_guard<std::mutex> lock(g_stream_mutex);
+    ensure_stream_service_initialized();
+    if (!g_stream_service || !stream_id) {
+        return "{}";
+    }
+    static std::string stream_json;
+    stream_json = g_stream_service->getStreamData(stream_id);
+    return stream_json.c_str();
 }
 
 MD_API const char* get_weather_data() {
@@ -251,101 +309,92 @@ MD_API int update_weather_location(const char* location) {
 }
 
 MD_API const char* get_todo_data() {
-    static std::string todo_json = R"([
-        {
-            "id": "1",
-            "title": "Complete dashboard redesign",
-            "completed": false,
-            "priority": "high",
-            "category": "Development",
-            "dueDate": ")" + std::to_string(time(nullptr) + 86400) + R"(",
-            "createdAt": ")" + std::to_string(time(nullptr) - 3600) + R"(",
-            "description": "Implement modern glassmorphism UI with better UX"
-        },
-        {
-            "id": "2",
-            "title": "Integrate real weather API",
-            "completed": false,
-            "priority": "medium",
-            "category": "Features",
-            "dueDate": ")" + std::to_string(time(nullptr) + 172800) + R"(",
-            "createdAt": ")" + std::to_string(time(nullptr) - 7200) + R"(",
-            "description": "Replace mock weather data with OpenWeatherMap API"
-        },
-        {
-            "id": "3",
-            "title": "Test FFI integration",
-            "completed": true,
-            "priority": "high",
-            "category": "Testing",
-            "dueDate": ")" + std::to_string(time(nullptr) - 3600) + R"(",
-            "createdAt": ")" + std::to_string(time(nullptr) - 14400) + R"(",
-            "description": "Verify C++ backend connects properly to Flutter frontend"
-        }
-    ])";
+    std::lock_guard<std::mutex> lock(g_todo_mutex);
+    ensure_todo_service_initialized();
+    if (!g_todo_service) {
+        return "[]";
+    }
+    static std::string todo_json;
+    todo_json = g_todo_service->exportTodos();
     return todo_json.c_str();
 }
 
-MD_API int add_todo_item(const char* /*json_data*/) {
-    // TODO: Implement todo service
-    return 1;
+MD_API int add_todo_item(const char* json_data) {
+    std::lock_guard<std::mutex> lock(g_todo_mutex);
+    ensure_todo_service_initialized();
+    if (!g_todo_service || !json_data) {
+        return 0;
+    }
+    try {
+        nlohmann::json json = nlohmann::json::parse(json_data);
+        auto item = g_todo_service->jsonToTodoItem(json);
+        auto result = g_todo_service->createTodo(item);
+        return result.success ? 1 : 0;
+    } catch (const std::exception& e) {
+        return 0;
+    }
 }
 
-MD_API int update_todo_item(const char* /*json_data*/) {
-    // TODO: Implement todo service
-    return 1;
+MD_API int update_todo_item(const char* json_data) {
+    std::lock_guard<std::mutex> lock(g_todo_mutex);
+    ensure_todo_service_initialized();
+    if (!g_todo_service || !json_data) {
+        return 0;
+    }
+    try {
+        nlohmann::json json = nlohmann::json::parse(json_data);
+        auto item = g_todo_service->jsonToTodoItem(json);
+        auto result = g_todo_service->updateTodo(item);
+        return result.success ? 1 : 0;
+    } catch (const std::exception& e) {
+        return 0;
+    }
 }
 
-MD_API int delete_todo_item(const char* /*item_id*/) {
-    // TODO: Implement todo service
-    return 1;
+MD_API int delete_todo_item(const char* item_id) {
+    std::lock_guard<std::mutex> lock(g_todo_mutex);
+    ensure_todo_service_initialized();
+    if (!g_todo_service || !item_id) {
+        return 0;
+    }
+    try {
+        int id = std::stoi(item_id);
+        auto result = g_todo_service->deleteTodo(id);
+        return result.success ? 1 : 0;
+    } catch (const std::exception& e) {
+        return 0;
+    }
 }
 
 MD_API const char* get_mail_data() {
-    static std::string mail_json = R"([
-        {
-            "id": "1",
-            "from": "team@moderndashboard.io",
-            "fromName": "Modern Dashboard Team",
-            "subject": "🎉 Welcome to Your New Dashboard!",
-            "read": false,
-            "priority": "normal",
-            "timestamp": ")" + std::to_string(time(nullptr) - 900) + R"(",
-            "preview": "Your dashboard is now connected and ready to use. Explore the new features...",
-            "category": "updates",
-            "hasAttachments": false
-        },
-        {
-            "id": "2",
-            "from": "notifications@github.com",
-            "fromName": "GitHub",
-            "subject": "New release available: Modern Dashboard v2.0",
-            "read": true,
-            "priority": "low",
-            "timestamp": ")" + std::to_string(time(nullptr) - 7200) + R"(",
-            "preview": "A new version of Modern Dashboard is now available with improved...",
-            "category": "notifications",
-            "hasAttachments": true
-        },
-        {
-            "id": "3",
-            "from": "api@openweathermap.org",
-            "fromName": "OpenWeather API",
-            "subject": "API Usage Summary - Weather Data",
-            "read": true,
-            "priority": "low",
-            "timestamp": ")" + std::to_string(time(nullptr) - 25200) + R"(",
-            "preview": "Your monthly API usage report for weather data integration...",
-            "category": "api",
-            "hasAttachments": false
-        }
-    ])";
+    std::lock_guard<std::mutex> lock(g_mail_mutex);
+    ensure_mail_service_initialized();
+    if (!g_mail_service) {
+        return "[]";
+    }
+    static std::string mail_json;
+    mail_json = g_mail_service->getMailData();
     return mail_json.c_str();
 }
 
-MD_API int configure_mail_account(const char* /*json_config*/) {
-    // TODO: Implement mail service
-    return 1;
+MD_API int configure_mail_account(const char* json_config) {
+    std::lock_guard<std::mutex> lock(g_mail_mutex);
+    ensure_mail_service_initialized();
+    if (!g_mail_service || !json_config) {
+        return 0;
+    }
+    try {
+        nlohmann::json json = nlohmann::json::parse(json_config);
+        dashboard::services::MailService::MailAccount account;
+        account.email_address = json.value("email_address", "");
+        account.password = json.value("password", "");
+        account.imap_server = json.value("imap_server", "");
+        account.imap_port = json.value("imap_port", 993);
+        account.use_ssl = json.value("use_ssl", true);
+        return g_mail_service->initialize(account) ? 1 : 0;
+    } catch (const std::exception& e) {
+        return 0;
+    }
 }
 
 MD_API int update_widget_config(const char* widget_id, const char* config_json) {
