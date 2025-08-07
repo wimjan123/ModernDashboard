@@ -1,5 +1,5 @@
 import 'dart:ffi' as ffi;
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, Directory;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/mock_data_service.dart';
@@ -83,19 +83,20 @@ class FfiBridge {
 
     try {
       if (Platform.isMacOS) {
-        // Try multiple locations for the .dylib file (including libmoderndash.dylib)
+        // Try multiple locations for the .dylib file (CMake creates moderndash.dylib without lib prefix)
         print('FFI: Attempting to load macOS library...');
         final libPaths = [
-          './moderndash.dylib',
-          'moderndash.dylib', 
-          './libmoderndash.dylib',
-          'libmoderndash.dylib',
-          '../build/moderndash.dylib',
-          '../build/libmoderndash.dylib',
-          './build/moderndash.dylib',
-          './build/libmoderndash.dylib',
-          '/usr/local/lib/moderndash.dylib',
-          '/usr/local/lib/libmoderndash.dylib'
+          '../build/moderndash.dylib',           // Primary CMake output location
+          'build/moderndash.dylib',              // Alternative build location
+          './moderndash.dylib',                  // Current directory
+          'moderndash.dylib',                    // Relative to executable
+          'lib/native/moderndash.dylib',         // Flutter native directory
+          '../build/libmoderndash.dylib',        // Fallback with lib prefix
+          './build/libmoderndash.dylib',         // Alternative with lib prefix
+          './libmoderndash.dylib',               // Current directory with lib prefix
+          'libmoderndash.dylib',                 // Relative with lib prefix
+          '/usr/local/lib/moderndash.dylib',     // System location
+          '/usr/local/lib/libmoderndash.dylib'   // System location with lib prefix
         ];
         
         bool loaded = false;
@@ -115,18 +116,21 @@ class FfiBridge {
           throw Exception('FFI: Could not load any .dylib variant. Tried: ${libPaths.join(', ')}');
         }
       } else if (Platform.isLinux) {
-        // Try multiple locations for the .so file
+        // Try multiple locations for the .so file (CMake creates libmoderndash.so on Linux)
         print('FFI: Attempting to load Linux library...');
         final libPaths = [
-          './moderndash.so',
-          'moderndash.so',
-          '../build/libmoderndash.so',
-          './build/libmoderndash.so',  
-          '/root/claude/ModernDashboard/build/libmoderndash.so',
-          './libmoderndash.so',
-          'libmoderndash.so',
-          '/usr/local/lib/moderndash.so',
-          '/usr/local/lib/libmoderndash.so'
+          '../build/libmoderndash.so',                          // Primary CMake output location
+          'build/libmoderndash.so',                             // Alternative build location
+          '/root/claude/ModernDashboard/build/libmoderndash.so', // Absolute path fallback
+          './libmoderndash.so',                                 // Current directory
+          'libmoderndash.so',                                   // Relative to executable
+          'lib/native/libmoderndash.so',                        // Flutter native directory
+          '../build/moderndash.so',                             // Without lib prefix (less likely)
+          './build/moderndash.so',                              // Alternative without lib prefix
+          './moderndash.so',                                    // Current directory without lib prefix
+          'moderndash.so',                                      // Relative without lib prefix
+          '/usr/local/lib/libmoderndash.so',                   // System location
+          '/usr/local/lib/moderndash.so'                        // System location without lib prefix
         ];
         
         bool loaded = false;
@@ -146,16 +150,73 @@ class FfiBridge {
           throw Exception('FFI: Could not load any .so variant. Tried: ${libPaths.join(', ')}');
         }
       } else if (Platform.isWindows) {
-        _lib = ffi.DynamicLibrary.open('moderndash.dll');
+        // Try multiple locations for the .dll file
+        print('FFI: Attempting to load Windows library...');
+        final libPaths = [
+          '../build/moderndash.dll',     // Primary CMake output location
+          'build/moderndash.dll',        // Alternative build location
+          './moderndash.dll',            // Current directory
+          'moderndash.dll',              // Relative to executable
+          'lib/native/moderndash.dll'    // Flutter native directory
+        ];
+        
+        bool loaded = false;
+        for (final path in libPaths) {
+          try {
+            print('FFI: Trying $path');
+            _lib = ffi.DynamicLibrary.open(path);
+            print('FFI: ✅ Successfully loaded $path');
+            loaded = true;
+            break;
+          } catch (e) {
+            print('FFI: ❌ Failed $path: $e');
+          }
+        }
+        
+        if (!loaded) {
+          throw Exception('FFI: Could not load any .dll variant. Tried: ${libPaths.join(', ')}');
+        }
       } else {
         throw UnsupportedError('FFI not supported on this platform');
       }
     } catch (e) {
+      // Enhanced error reporting for better debugging
+      print('FFI: ❌ Critical error during library loading: $e');
+      print('FFI: Platform: ${Platform.operatingSystem}');
+      print('FFI: Architecture: ${Platform.resolvedExecutable}');
+      print('FFI: Working directory: ${Directory.current.path}');
+      
       // If library loading fails, this will cause isSupported to be false
       // and the fallback to CppBridge will be used
-      throw Exception('Failed to load native library: $e');
+      rethrow;
     }
 
+    // Verify that required functions are available before proceeding
+    print('FFI: Verifying function availability...');
+    try {
+      // Test lookup of critical functions to ensure they exist
+      final testLookup = _lib!.lookup('initialize_dashboard_engine');
+      if (testLookup.address == 0) {
+        throw Exception('initialize_dashboard_engine function not found in library');
+      }
+      print('FFI: ✅ initialize_dashboard_engine function found');
+      
+      // Check for other critical functions
+      final criticalFunctions = ['get_news_data', 'get_weather_data', 'get_todo_data'];
+      for (final funcName in criticalFunctions) {
+        try {
+          final lookup = _lib!.lookup(funcName);
+          if (lookup.address != 0) {
+            print('FFI: ✅ $funcName function found');
+          }
+        } catch (e) {
+          print('FFI: ⚠️  $funcName function not found: $e');
+        }
+      }
+    } catch (e) {
+      throw Exception('FFI: Function verification failed: $e');
+    }
+    
     // Use direct lookup with explicit NativeFunction<...> to satisfy bounds
     _initialize = _lib!
         .lookup<ffi.NativeFunction<_init_native>>('initialize_dashboard_engine')
