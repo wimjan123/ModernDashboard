@@ -149,13 +149,28 @@ print_success "macOS desktop support enabled"
 # Step 8: Navigate to Flutter frontend directory
 cd flutter_frontend
 
-# Step 9: Generate macOS platform files
-print_step "Generating macOS platform files..."
+# Step 9: Generate platform directories for all required platforms
+print_step "Generating platform directories (macOS, iOS, Android)..."
+MISSING_PLATFORMS=""
+
 if [ ! -d "macos" ]; then
-    flutter create . --platforms=macos
-    print_success "macOS platform files generated"
+    MISSING_PLATFORMS="$MISSING_PLATFORMS,macos"
+fi
+if [ ! -d "ios" ]; then
+    MISSING_PLATFORMS="$MISSING_PLATFORMS,ios"
+fi
+if [ ! -d "android" ]; then
+    MISSING_PLATFORMS="$MISSING_PLATFORMS,android"
+fi
+
+if [ -n "$MISSING_PLATFORMS" ]; then
+    # Remove leading comma
+    MISSING_PLATFORMS="${MISSING_PLATFORMS#,}"
+    print_step "Generating missing platform directories: $MISSING_PLATFORMS"
+    flutter create . --platforms="$MISSING_PLATFORMS"
+    print_success "Platform directories generated: $MISSING_PLATFORMS"
 else
-    print_success "macOS platform files already exist"
+    print_success "All required platform directories already exist"
 fi
 
 # Step 10: Install Flutter dependencies
@@ -179,7 +194,7 @@ fi
 # Run FlutterFire configuration
 print_step "Running FlutterFire configuration..."
 echo "Please select your Firebase project and ensure you enable the following platforms:"
-echo "  - iOS (required for macOS)"
+echo "  - iOS (required for macOS configuration copying)"
 echo "  - macOS"
 echo "  - Android"
 echo "  - Web (optional)"
