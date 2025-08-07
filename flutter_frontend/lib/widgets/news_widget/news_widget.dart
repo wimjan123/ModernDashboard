@@ -37,7 +37,7 @@ class _NewsWidgetState extends State<NewsWidget> {
     try {
       String newsData;
       if (kIsWeb) {
-        newsData = FfiBridge.getNewsData();
+        newsData = CppBridge.getNewsData();
       } else {
         newsData = FfiBridge.isSupported ? FfiBridge.getNewsData() : CppBridge.getNewsData();
       }

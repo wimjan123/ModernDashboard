@@ -115,19 +115,35 @@ class FfiBridge {
           throw Exception('FFI: Could not load any .dylib variant. Tried: ${libPaths.join(', ')}');
         }
       } else if (Platform.isLinux) {
-        // Try multiple possible locations for the library
-        try {
-          _lib = ffi.DynamicLibrary.open('./moderndash.so');
-        } catch (e) {
+        // Try multiple locations for the .so file
+        print('FFI: Attempting to load Linux library...');
+        final libPaths = [
+          './moderndash.so',
+          'moderndash.so',
+          '../build/libmoderndash.so',
+          './build/libmoderndash.so',  
+          '/root/claude/ModernDashboard/build/libmoderndash.so',
+          './libmoderndash.so',
+          'libmoderndash.so',
+          '/usr/local/lib/moderndash.so',
+          '/usr/local/lib/libmoderndash.so'
+        ];
+        
+        bool loaded = false;
+        for (final path in libPaths) {
           try {
-            _lib = ffi.DynamicLibrary.open('moderndash.so');
+            print('FFI: Trying $path');
+            _lib = ffi.DynamicLibrary.open(path);
+            print('FFI: ✅ Successfully loaded $path');
+            loaded = true;
+            break;
           } catch (e) {
-            try {
-              _lib = ffi.DynamicLibrary.open('./libmoderndash.so');
-            } catch (e) {
-              _lib = ffi.DynamicLibrary.open('libmoderndash.so');
-            }
+            print('FFI: ❌ Failed $path: $e');
           }
+        }
+        
+        if (!loaded) {
+          throw Exception('FFI: Could not load any .so variant. Tried: ${libPaths.join(', ')}');
         }
       } else if (Platform.isWindows) {
         _lib = ffi.DynamicLibrary.open('moderndash.dll');

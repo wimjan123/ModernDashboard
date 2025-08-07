@@ -47,7 +47,7 @@ class _WeatherWidgetState extends State<WeatherWidget> {
     try {
       String weatherJson;
       if (kIsWeb) {
-        weatherJson = FfiBridge.getWeatherData();
+        weatherJson = CppBridge.getWeatherData();
       } else {
         weatherJson = FfiBridge.isSupported ? FfiBridge.getWeatherData() : CppBridge.getWeatherData();
       }

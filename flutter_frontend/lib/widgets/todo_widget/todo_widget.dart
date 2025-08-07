@@ -47,7 +47,7 @@ class _TodoWidgetState extends State<TodoWidget> {
     try {
       String todoJson;
       if (kIsWeb) {
-        todoJson = FfiBridge.getTodoData();
+        todoJson = CppBridge.getTodoData();
       } else {
         todoJson = FfiBridge.isSupported ? FfiBridge.getTodoData() : CppBridge.getTodoData();
       }
@@ -84,7 +84,7 @@ class _TodoWidgetState extends State<TodoWidget> {
       
       bool success;
       if (kIsWeb) {
-        success = FfiBridge.updateTodoItem(json.encode(updatedItem));
+        success = CppBridge.updateTodoItem(json.encode(updatedItem));
       } else {
         success = FfiBridge.isSupported 
             ? FfiBridge.updateTodoItem(json.encode(updatedItem))
