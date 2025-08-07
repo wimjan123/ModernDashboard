@@ -39,6 +39,13 @@ target_link_libraries(moderndash
     nlohmann_json::nlohmann_json
 )
 
+# Add library directories for pkg-config libraries
+target_link_directories(moderndash PRIVATE
+    ${TINYXML2_LIBRARY_DIRS}
+    ${SQLITE3_LIBRARY_DIRS}
+    ${CURL_LIBRARY_DIRS}
+)
+
 # Platform-specific properties and deps
 if(WIN32)
     target_link_libraries(moderndash ws2_32 winhttp)
