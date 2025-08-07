@@ -80,3 +80,10 @@ target_include_directories(ModernDashboard PRIVATE
 )
 # Ensure the executable links to the shared library C API, avoiding duplicate symbol issues
 target_link_libraries(ModernDashboard moderndash)
+
+# Add library directories for the executable too (needed on macOS)
+target_link_directories(ModernDashboard PRIVATE
+    ${TINYXML2_LIBRARY_DIRS}
+    ${SQLITE3_LIBRARY_DIRS}
+    ${CURL_LIBRARY_DIRS}
+)
