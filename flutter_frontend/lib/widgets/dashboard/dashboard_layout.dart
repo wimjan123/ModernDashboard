@@ -1,16 +1,14 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../news_widget/news_widget.dart';
 import '../weather_widget/weather_widget.dart';
 import '../todo_widget/todo_widget.dart';
 import '../mail_widget/mail_widget.dart';
 import '../common/glass_card.dart';
-import '../../services/cpp_bridge.dart';
 import '../../core/theme/dark_theme.dart';
-
-// Conditional import for FFI (web uses stub)
-import '../../services/ffi_bridge.dart' if (dart.library.html) '../../services/ffi_bridge_web.dart';
+import '../../firebase/firebase_service.dart';
+import '../../repositories/repository_provider.dart';
 
 class WidgetConfig {
   final String id;
@@ -98,31 +96,23 @@ class _DashboardLayoutState extends State<DashboardLayout>
 
   void _initializeBackend() async {
     try {
-      bool success = false;
+      // Check if Firebase and repositories are initialized
+      final repositoryProvider = Provider.of<RepositoryProvider>(context, listen: false);
+      final firebaseService = FirebaseService.instance;
       
-      if (kIsWeb) {
-        // On web, use FFI stub which now has rich data
-        success = FfiBridge.initializeEngine();
-        debugPrint('Web platform initialized with FFI stub: $success');
-      } else {
-        // On native platforms, try FFI first, fallback to CppBridge
-        try {
-          success = FfiBridge.initializeEngine();
-          if (success && FfiBridge.isSupported) {
-            debugPrint('Native FFI Bridge initialized: $success');
-          } else {
-            success = CppBridge.initializeEngine();
-            debugPrint('Using CppBridge fallback: $success');
-          }
-        } catch (e) {
-          debugPrint('FFI Bridge failed: $e, using CppBridge fallback');
-          success = CppBridge.initializeEngine();
-        }
-      }
+      final success = firebaseService.isInitialized && 
+                     repositoryProvider.isInitialized &&
+                     firebaseService.isAuthenticated();
       
       setState(() {
         _isInitialized = success;
       });
+      
+      if (success) {
+        debugPrint('Firebase backend initialized successfully');
+      } else {
+        debugPrint('Firebase backend not fully initialized');
+      }
     } catch (e) {
       debugPrint('Failed to initialize backend: $e');
       setState(() {
@@ -165,23 +155,8 @@ class _DashboardLayoutState extends State<DashboardLayout>
     _updateTimer?.cancel();
     _slideAnimationController.dispose();
     _refreshController.close();
-    try {
-      if (kIsWeb) {
-        FfiBridge.shutdownEngine();
-      } else {
-        try {
-          if (FfiBridge.isSupported) {
-            FfiBridge.shutdownEngine();
-          } else {
-            CppBridge.shutdownEngine();
-          }
-        } catch (_) {
-          CppBridge.shutdownEngine();
-        }
-      }
-    } catch (e) {
-      debugPrint('Failed to shutdown backend: $e');
-    }
+    // No need to shutdown Firebase services as they are managed globally
+    debugPrint('Dashboard layout disposed');
     super.dispose();
   }
 
@@ -298,7 +273,7 @@ class _DashboardLayoutState extends State<DashboardLayout>
                     // Refresh overlay
                     if (_isRefreshing)
                       Container(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         child: const Center(
                           child: CircularProgressIndicator(),
                         ),
