@@ -41,14 +41,20 @@ class LegacyFFITodoRepository implements TodoRepository {
   }
 
   @override
-  Future<TodoStatistics> getStatistics() async {
+  Future<Map<String, int>> getStatistics() async {
     // Return mock statistics
-    return const TodoStatistics(
-      total: 0,
-      completed: 0,
-      pending: 0,
-      categories: [],
-    );
+    return {
+      'total': 0,
+      'completed': 0,
+      'pending': 0,
+      'overdue': 0,
+    };
+  }
+
+  @override
+  Future<List<String>> getCategories() async {
+    // Return mock categories
+    return ['general', 'work', 'personal'];
   }
 
   @override

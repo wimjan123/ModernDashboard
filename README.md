@@ -1,163 +1,343 @@
 # ModernDashboard
 
-A high-performance native desktop application combining C++ backend services with Flutter's modern UI framework, delivering native performance with beautiful cross-platform design.
+A modern Flutter desktop application with Firebase backend, delivering beautiful cross-platform design with cloud-powered data synchronization and real-time updates.
 
-![Dashboard Preview](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
-![Language](https://img.shields.io/badge/Language-C%2B%2B20%20%7C%20Dart-green)
+![Dashboard Preview](https://img.shields.io/badge/Platform-macOS%20%7C%20iOS%20%7C%20Web-blue)
+![Language](https://img.shields.io/badge/Language-Dart%20%7C%20Flutter-green)
+![Backend](https://img.shields.io/badge/Backend-Firebase-orange)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ## 🚀 Features
 
-- **Native Performance**: C++ backend with direct system integration
+- **Cloud-Powered**: Firebase backend with real-time synchronization
 - **Modern UI**: Flutter desktop with beautiful Material Design 3 dark theme
-- **Cross-Platform**: Single codebase supporting Windows, macOS, and Linux
-- **Real-time Updates**: Live data feeds with configurable refresh intervals
-- **Modular Architecture**: Plugin-based widget system for easy extensibility
+- **Cross-Platform**: Single codebase supporting macOS, iOS, and Web
+- **Real-time Updates**: Live data feeds with Firestore real-time listeners
+- **Offline Support**: Firestore persistence for offline functionality
+- **Repository Pattern**: Clean architecture with dependency injection
 
 ### Dashboard Widgets
 
-- 📰 **News Widget**: RSS feed aggregation from multiple sources
+- 📰 **News Widget**: RSS feed aggregation with cloud storage
 - 🌤️ **Weather Widget**: Real-time weather information with location-based updates
-- ✅ **Todo Widget**: Task management with completion tracking
-- 📧 **Mail Widget**: Email notifications with unread count indicators
+- ✅ **Todo Widget**: Task management with Firestore synchronization
+- 📧 **Mail Widget**: Email notifications with cloud persistence
 
 ## 🏗️ Architecture
 
 ### Technology Stack
 
-- **Backend**: C++20 with CMake, SQLite, OpenSSL, libcurl
-- **Frontend**: Flutter 3.10+ with FFI bridge
-- **Communication**: Foreign Function Interface (FFI) for high-performance data exchange
-- **Database**: SQLite3 for local data persistence
-- **Network**: HTTP/HTTPS clients with SSL/TLS support
+- **Frontend**: Flutter 3.10+ with Material Design 3
+- **Backend**: Firebase (Firestore, Auth, Functions)
+- **Database**: Cloud Firestore with offline persistence
+- **Authentication**: Firebase Auth (anonymous authentication)
+- **State Management**: Repository pattern with dependency injection
 
 ### Project Structure
 
 ```
 ModernDashboard/
-├── cpp_backend/                # C++ Backend Engine
-│   ├── src/
-│   │   ├── core/              # Core systems (Engine, WidgetManager)
-│   │   ├── services/          # Business logic services
-│   │   ├── network/           # HTTP/WebSocket clients
-│   │   ├── database/          # Data persistence layer
-│   │   └── main.cpp           # FFI interface implementation
-│   └── include/               # Public headers
 ├── flutter_frontend/          # Flutter Desktop App
 │   ├── lib/
-│   │   ├── core/              # App core and theme
-│   │   ├── services/          # FFI bridge services
+│   │   ├── core/              # App core, theme, and DI
+│   │   ├── firebase/          # Firebase services and configuration
+│   │   ├── repositories/      # Data layer with repository pattern
 │   │   ├── widgets/           # Dashboard widgets
-│   │   └── screens/           # Application screens
+│   │   ├── screens/           # Application screens
+│   │   └── main.dart          # App entry point
+│   ├── macos/                 # macOS platform files
+│   ├── ios/                   # iOS platform files
+│   ├── web/                   # Web platform files
 │   └── pubspec.yaml           # Flutter dependencies
-├── shared/                    # Shared interface definitions
-│   ├── ffi_interface.h        # C++ ↔ Dart interface
-│   ├── data_models.h          # Shared data structures
-│   └── constants.h            # Configuration constants
-└── CMakeLists.txt             # Build configuration
+├── setup_macos.sh             # Automated macOS setup script
+├── Makefile                   # Development commands
+└── README.md                  # This file
 ```
 
 ## 🛠️ Installation
 
 ### Prerequisites
 
-- **C++ Compiler**: GCC 9+ or Clang 10+ with C++20 support
-- **CMake**: Version 3.15 or higher
 - **Flutter**: Version 3.10 or higher
-- **System Libraries**: SQLite3, OpenSSL, libcurl
+- **Xcode**: Version 14 or higher (for macOS/iOS development)
+- **CocoaPods**: For iOS/macOS dependency management
+- **Firebase CLI**: For Firebase project configuration
+- **Node.js**: Version 16+ (for Firebase CLI)
 
-#### Ubuntu/Debian
+### Quick Setup (Recommended)
+
+For automated macOS development setup:
+
 ```bash
-sudo apt update
-sudo apt install build-essential cmake libsqlite3-dev libssl-dev libcurl4-openssl-dev
+git clone https://github.com/yourusername/ModernDashboard.git
+cd ModernDashboard
+./setup_macos.sh
 ```
 
-#### macOS
+This script will:
+- Verify all prerequisites
+- Enable macOS desktop support
+- Configure Firebase for all platforms
+- Install dependencies and CocoaPods
+- Set up the development environment
+
+### Manual Setup
+
+#### 1. Install Prerequisites
+
+**macOS Development Tools:**
 ```bash
-brew install cmake openssl sqlite3 curl
+# Install Xcode command line tools
+xcode-select --install
+
+# Install CocoaPods
+sudo gem install cocoapods
+
+# Install Firebase CLI
+npm install -g firebase-tools
 ```
 
-#### Windows
-- Install Visual Studio 2019+ with C++ tools
-- Install CMake from https://cmake.org/download/
-- Install vcpkg for dependency management
+**Flutter Setup:**
+```bash
+# Verify Flutter installation
+flutter doctor
 
-### Build Instructions
+# Enable macOS desktop support
+flutter config --enable-macos-desktop
+```
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/ModernDashboard.git
-   cd ModernDashboard
-   ```
+#### 2. Clone and Configure
 
-2. **Build C++ Backend**
-   ```bash
-   mkdir -p build
-   cmake -S . -B build
-   cmake --build build -j$(nproc)
-   ```
+```bash
+git clone https://github.com/yourusername/ModernDashboard.git
+cd ModernDashboard
+```
 
-3. **Build Flutter Frontend**
-   ```bash
-   cd flutter_frontend
-   flutter pub get
-   flutter build windows  # or macos/linux
-   ```
+#### 3. Firebase Configuration
 
-4. **Development Run**
-   ```bash
-   cd flutter_frontend
-   flutter run -d windows  # or macos/linux
-   ```
+```bash
+# Login to Firebase
+firebase login
+
+# Configure Firebase project
+cd flutter_frontend
+flutterfire configure
+```
+
+This will:
+- Create or select a Firebase project
+- Generate `firebase_options.dart`
+- Create platform-specific config files
+- Set up Firebase services
+
+#### 4. Platform Setup
+
+```bash
+# Generate macOS platform files
+flutter create . --platforms=macos
+
+# Install Flutter dependencies
+flutter pub get
+
+# Install macOS CocoaPods
+cd macos && pod install && cd ..
+```
 
 ## 🎯 Usage
 
-### Running the Application
+### Development Commands
 
-After building, run the Flutter application:
+Using the Makefile for common tasks:
+
+```bash
+# Run on macOS
+make run
+
+# Run on iOS simulator
+make run-ios
+
+# Run on web
+make run-web
+
+# Run tests
+make test
+
+# Build for macOS
+make build-macos
+```
+
+### Manual Commands
 
 ```bash
 cd flutter_frontend
-flutter run -d <platform>
+
+# Run on macOS
+flutter run -d macos
+
+# Run on iOS simulator
+flutter run -d ios
+
+# Run on web
+flutter run -d web-server --web-port 8080
+
+# Build for production
+flutter build macos
 ```
 
-The dashboard will automatically:
-- Initialize the C++ backend engine
-- Load default RSS feeds and configurations
-- Start periodic updates for all widgets
-- Display real-time information in a responsive grid layout
+### Firebase Emulators (Development)
 
-### Configuration
+For local development with Firebase emulators:
 
-Widget configurations can be modified through:
-- **News Feeds**: Add/remove RSS sources via FFI interface
-- **Weather Location**: Update location for weather data
-- **Update Intervals**: Modify refresh rates in `shared/constants.h`
+```bash
+# Start Firebase emulators
+make firebase-emulators
+
+# Or manually
+firebase emulators:start --only firestore,auth
+```
+
+## 🔧 Configuration
+
+### Firebase Project Setup
+
+1. **Create Firebase Project**: Visit [Firebase Console](https://console.firebase.google.com)
+2. **Enable Services**:
+   - Firestore Database
+   - Authentication (Anonymous)
+   - Functions (optional)
+3. **Configure Security Rules**:
+   ```javascript
+   // Firestore rules for anonymous auth
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /{document=**} {
+         allow read, write: if request.auth != null;
+       }
+     }
+   }
+   ```
+
+### Environment Configuration
+
+Create `.env` file in `flutter_frontend/` for environment-specific settings:
+
+```env
+# Development settings
+FLUTTER_ENV=development
+FIREBASE_EMULATOR_HOST=localhost
+FIRESTORE_EMULATOR_PORT=8080
+```
 
 ## 🧪 Testing
 
-### C++ Tests
+### Unit and Widget Tests
+
 ```bash
-# Build and run C++ tests (requires Google Test)
-ctest --test-dir build --output-on-failure
+# Run all tests
+flutter test
+
+# Run with coverage
+flutter test --coverage
 ```
 
-### Flutter Tests
+### Firebase Emulator Testing
+
 ```bash
-cd flutter_frontend
-flutter test
+# Start emulators
+firebase emulators:start
+
+# Run tests against emulators
+flutter test --dart-define=USE_FIREBASE_EMULATOR=true
 ```
 
 ### Code Quality
-```bash
-# C++ formatting and analysis
-clang-format -i $(git ls-files 'cpp_backend/**/*.[ch]pp')
-clang-tidy -p build $(git ls-files 'cpp_backend/**/*.cpp')
 
-# Dart formatting and analysis
-cd flutter_frontend
+```bash
+# Format code
 dart format .
+
+# Analyze code
 dart analyze
+
+# Run linting
+dart run dart_code_metrics:metrics analyze lib
+```
+
+## 🚀 Deployment
+
+### macOS App Distribution
+
+```bash
+# Build for release
+flutter build macos --release
+
+# Create app bundle
+cd build/macos/Build/Products/Release/
+# App bundle is ready for distribution
+```
+
+### Web Deployment
+
+```bash
+# Build for web
+flutter build web --release
+
+# Deploy to Firebase Hosting (optional)
+firebase deploy --only hosting
+```
+
+### Firebase Deployment
+
+```bash
+# Deploy Firestore rules
+firebase deploy --only firestore:rules
+
+# Deploy Functions (if using)
+firebase deploy --only functions
+```
+
+## 🔍 Troubleshooting
+
+### Common macOS Issues
+
+**CocoaPods Issues:**
+```bash
+# Clean and reinstall pods
+cd macos
+rm -rf Pods Podfile.lock
+pod install
+```
+
+**Firebase Configuration:**
+```bash
+# Regenerate Firebase config
+flutterfire configure --force
+```
+
+**Build Issues:**
+```bash
+# Clean Flutter build
+flutter clean
+flutter pub get
+cd macos && pod install
+```
+
+### Firebase Connectivity
+
+**Check Firebase Connection:**
+```bash
+# Test Firebase project access
+firebase projects:list
+
+# Verify Firestore rules
+firebase firestore:rules:get
+```
+
+**Emulator Issues:**
+```bash
+# Reset emulator data
+firebase emulators:start --import=./emulator-data --export-on-exit
 ```
 
 ## 🤝 Contributing
@@ -173,8 +353,9 @@ dart analyze
 - Follow the existing code style and conventions
 - Add tests for new features
 - Update documentation for API changes
-- Ensure cross-platform compatibility
+- Ensure Firebase security rules are properly configured
 - Use meaningful commit messages
+- Test on multiple platforms (macOS, iOS, Web)
 
 ## 📝 License
 
@@ -182,19 +363,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔮 Roadmap
 
-- [ ] **Network Layer**: Complete HTTP client and RSS parser implementation
-- [ ] **Stream Integration**: Video streaming support with FFmpeg
-- [ ] **Database Layer**: Full SQLite integration with migrations
-- [ ] **Plugin System**: Dynamic widget loading
+- [ ] **Enhanced Widgets**: More dashboard widget types
+- [ ] **Real-time Collaboration**: Multi-user support with Firestore
+- [ ] **Push Notifications**: Firebase Cloud Messaging integration
+- [ ] **Advanced Analytics**: Firebase Analytics integration
+- [ ] **Plugin System**: Dynamic widget loading from Firestore
 - [ ] **Configuration UI**: In-app settings management
-- [ ] **Theming**: Multiple theme support
+- [ ] **Theming**: Multiple theme support with cloud sync
 - [ ] **Localization**: Multi-language support
-- [ ] **Mobile Support**: iOS and Android versions
+- [ ] **Android Support**: Android platform support
 
 ## 🙏 Acknowledgments
 
 - **Flutter Team** for the excellent cross-platform framework
-- **CMake Community** for the robust build system
+- **Firebase Team** for the comprehensive backend platform
 - **Open Source Contributors** for the foundational libraries
 
 ## 📞 Support
@@ -206,4 +388,4 @@ For questions, bug reports, or feature requests:
 
 ---
 
-**Built with ❤️ using C++ and Flutter**# Self-hosted runner is now configured and running on VPS
+**Built with ❤️ using Flutter and Firebase**

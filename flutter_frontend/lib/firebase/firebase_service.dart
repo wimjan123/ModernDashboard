@@ -1,18 +1,19 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../firebase_options.dart';
 
 class FirebaseService {
   static FirebaseService? _instance;
   static FirebaseService get instance => _instance ??= FirebaseService._();
-  
+
   FirebaseService._();
 
   FirebaseApp? _app;
   FirebaseAuth? _auth;
   FirebaseFirestore? _firestore;
   User? _currentUser;
-  
+
   bool get isInitialized => _app != null;
   User? get currentUser => _currentUser;
   FirebaseFirestore get firestore => _firestore!;
@@ -22,29 +23,30 @@ class FirebaseService {
   Future<void> initializeFirebase() async {
     try {
       // Initialize Firebase app
-      _app = await Firebase.initializeApp();
-      
+      _app = await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
       // Initialize Auth
       _auth = FirebaseAuth.instance;
-      
+
       // Initialize Firestore with offline persistence
       _firestore = FirebaseFirestore.instance;
-      
+
       // Enable offline persistence using the new settings approach
       _firestore!.settings = const Settings(persistenceEnabled: true);
-      
+
       // Listen to authentication state changes
       _auth!.authStateChanges().listen((User? user) {
         _currentUser = user;
       });
-      
+
       // Sign in anonymously if no user exists
       if (_auth!.currentUser == null) {
         await signInAnonymously();
       } else {
         _currentUser = _auth!.currentUser;
       }
-      
     } catch (e) {
       throw Exception('Failed to initialize Firebase: $e');
     }
@@ -89,7 +91,7 @@ class FirebaseService {
   /// Retry Firebase initialization with exponential backoff
   Future<void> retryInitialization({int maxRetries = 3}) async {
     int retryCount = 0;
-    
+
     while (retryCount < maxRetries) {
       try {
         await initializeFirebase();
@@ -97,9 +99,10 @@ class FirebaseService {
       } catch (e) {
         retryCount++;
         if (retryCount >= maxRetries) {
-          throw Exception('Failed to initialize Firebase after $maxRetries attempts: $e');
+          throw Exception(
+              'Failed to initialize Firebase after $maxRetries attempts: $e');
         }
-        
+
         // Exponential backoff: wait 2^retryCount seconds
         await Future.delayed(Duration(seconds: (2 << retryCount)));
       }
