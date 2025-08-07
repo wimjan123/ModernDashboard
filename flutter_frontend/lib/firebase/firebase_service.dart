@@ -30,8 +30,8 @@ class FirebaseService {
       // Initialize Firestore with offline persistence
       _firestore = FirebaseFirestore.instance;
       
-      // Enable offline persistence
-      await _firestore!.enablePersistence();
+      // Enable offline persistence using the new settings approach
+      _firestore!.settings = const Settings(persistenceEnabled: true);
       
       // Listen to authentication state changes
       _auth!.authStateChanges().listen((User? user) {
@@ -79,6 +79,11 @@ class FirebaseService {
   /// Check if user is authenticated
   bool isAuthenticated() {
     return _currentUser != null;
+  }
+
+  /// Check if current user is anonymous
+  bool isAnonymousUser() {
+    return _currentUser?.isAnonymous ?? false;
   }
 
   /// Retry Firebase initialization with exponential backoff

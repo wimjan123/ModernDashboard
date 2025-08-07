@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/dark_theme.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/migration_screen.dart';
 import 'firebase/firebase_service.dart';
+import 'firebase/migration_service.dart';
 import 'repositories/repository_provider.dart';
 
 Future<void> main() async {
@@ -10,15 +12,25 @@ Future<void> main() async {
 
   // Initialize Firebase services
   bool initialized = false;
+  bool needsMigration = false;
+  
   try {
     await FirebaseService.instance.initializeFirebase();
     await RepositoryProvider.instance.initialize();
+    
+    // Check if migration is needed
+    needsMigration = await MigrationService.instance.isMigrationNeeded();
+    
     initialized = true;
   } catch (e) {
     // Try to retry initialization
     try {
       await FirebaseService.instance.retryInitialization();
       await RepositoryProvider.instance.initialize();
+      
+      // Check migration after retry
+      needsMigration = await MigrationService.instance.isMigrationNeeded();
+      
       initialized = true;
     } catch (retryError) {
       debugPrint('Failed to initialize Firebase after retry: $retryError');
@@ -26,12 +38,21 @@ Future<void> main() async {
     }
   }
 
-  runApp(ModernDashboardApp(initialized: initialized));
+  runApp(ModernDashboardApp(
+    initialized: initialized,
+    needsMigration: needsMigration,
+  ));
 }
 
 class ModernDashboardApp extends StatelessWidget {
   final bool initialized;
-  const ModernDashboardApp({super.key, required this.initialized});
+  final bool needsMigration;
+  
+  const ModernDashboardApp({
+    super.key, 
+    required this.initialized,
+    this.needsMigration = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +65,11 @@ class ModernDashboardApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Modern Dashboard',
         theme: DarkThemeData.theme,
-        home: initialized 
-            ? const DashboardScreen() 
-            : const InitializationErrorScreen(),
+        home: !initialized
+            ? const InitializationErrorScreen()
+            : needsMigration
+                ? const MigrationScreen()
+                : const DashboardScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );

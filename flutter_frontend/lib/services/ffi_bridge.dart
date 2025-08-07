@@ -2,7 +2,6 @@ import 'dart:ffi' as ffi;
 import 'dart:io' show Platform, Directory;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../services/mock_data_service.dart';
 
 // Native signatures (C ABI)
 typedef _init_native = ffi.Int32 Function();
@@ -52,33 +51,19 @@ class FfiBridge {
   static _str_int_dart? _configureMailAccount;
 
   static bool get isSupported {
-    if (_useMock) return true;
-    if (!(Platform.isMacOS || Platform.isLinux || Platform.isWindows)) return false;
+    if (kIsWeb || !(Platform.isMacOS || Platform.isLinux || Platform.isWindows)) {
+      return false;
+    }
     _ensureLoaded();
     return _lib != null;
   }
 
   static bool get _useMock {
-    // Prefer runtime dart-define, fallback to non-FFI platforms
-    const useMockDefine =
-        String.fromEnvironment('USE_MOCK_DATA', defaultValue: 'false');
-    final envFlag = useMockDefine.toLowerCase() == 'true';
-    // Web is handled by ffi_bridge_web.dart, but keep guard for completeness
-    if (kIsWeb) return true;
-    // Only allow mock on desktop targets
-    if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
-      return envFlag;
-    }
-    return envFlag;
+    // Mock data is disabled to ensure native backend is always used.
+    return false;
   }
 
   static void _ensureLoaded() {
-    if (_useMock) {
-      // Initialize shared mock once
-      MockDataService().initialize();
-      // Skip loading native libs entirely in mock mode
-      return;
-    }
     if (_lib != null) return;
 
     try {
@@ -185,9 +170,6 @@ class FfiBridge {
       print('FFI: Platform: ${Platform.operatingSystem}');
       print('FFI: Architecture: ${Platform.resolvedExecutable}');
       print('FFI: Working directory: ${Directory.current.path}');
-      
-      // If library loading fails, this will cause isSupported to be false
-      // and the fallback to CppBridge will be used
       rethrow;
     }
 
@@ -269,7 +251,7 @@ class FfiBridge {
         .asFunction<_str_int_dart>();
 
     _getMailData = _lib!
-        .lookup<ffi.NativeFunction<_noarg_str_native>>('get_mail_data')
+        .lookup<ffi.NativeFunction<_noarg_str_native>>('get_mail_.dartata')
         .asFunction<_noarg_str_dart>();
     _configureMailAccount = _lib!
         .lookup<ffi.NativeFunction<_str_int_native>>('configure_mail_account')
@@ -291,10 +273,6 @@ class FfiBridge {
     try {
       print('FFI: initializeEngine() starting...');
       _ensureLoaded();
-      if (_useMock) {
-        print('FFI: Using mock mode (USE_MOCK_DATA=true)');
-        return true;
-      }
       
       if (_lib == null) {
         print('FFI: ❌ Library not loaded, cannot initialize');
@@ -319,14 +297,14 @@ class FfiBridge {
 
   static bool shutdownEngine() {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _shutdown == null) return false;
     final result = _shutdown!.call();
     return result != 0;
   }
 
   static bool updateWidgetConfig(String widgetId, String configJson) {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _updateWidgetConfig == null) return false;
     final wid = _asUtf8(widgetId);
     final cfg = _asUtf8(configJson);
     try {
@@ -343,19 +321,13 @@ class FfiBridge {
     try {
       print('FFI: getNewsData() called');
       _ensureLoaded();
-      if (_useMock) {
-        print('FFI: Using mock data for news');
-        return MockDataService().getNewsData();
-      }
       
       if (_lib == null) {
-        print('FFI: ❌ Library not loaded for getNewsData, falling back to mock data');
-        return MockDataService().getNewsData();
+        throw Exception('FFI: ❌ Library not loaded for getNewsData');
       }
       
       if (_getNewsData == null) {
-        print('FFI: ❌ get_news_data function not found, falling back to mock data');
-        return MockDataService().getNewsData();
+        throw Exception('FFI: ❌ get_news_data function not found');
       }
       
       print('FFI: Calling native get_news_data()...');
@@ -364,14 +336,14 @@ class FfiBridge {
       print('FFI: get_news_data() returned ${result.length} chars: ${result.substring(0, result.length.clamp(0, 100))}${result.length > 100 ? '...' : ''}');
       return result;
     } catch (e) {
-      print('FFI: ❌ getNewsData failed: $e, falling back to mock data');
-      return MockDataService().getNewsData();
+      print('FFI: ❌ getNewsData failed: $e');
+      rethrow;
     }
   }
 
   static bool addNewsFeed(String url) {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _addNewsFeed == null) return false;
     final u = _asUtf8(url);
     try {
       final res = _addNewsFeed!.call(u);
@@ -383,7 +355,7 @@ class FfiBridge {
 
   static bool removeNewsFeed(String url) {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _removeNewsFeed == null) return false;
     final u = _asUtf8(url);
     try {
       final res = _removeNewsFeed!.call(u);
@@ -396,7 +368,7 @@ class FfiBridge {
   // Stream
   static bool startStream(String url) {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _startStream == null) return false;
     final u = _asUtf8(url);
     try {
       final res = _startStream!.call(u);
@@ -408,7 +380,7 @@ class FfiBridge {
 
   static bool stopStream(String streamId) {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _stopStream == null) return false;
     final s = _asUtf8(streamId);
     try {
       final res = _stopStream!.call(s);
@@ -421,11 +393,8 @@ class FfiBridge {
   static String getStreamData(String streamId) {
     try {
       _ensureLoaded();
-      if (_useMock) return MockDataService().getStreamData();
-      
       if (_lib == null || _getStreamData == null) {
-        print('FFI: ❌ Library or function not available for getStreamData, falling back to mock data');
-        return MockDataService().getStreamData();
+        throw Exception('FFI: ❌ Library or function not available for getStreamData');
       }
       
       final s = _asUtf8(streamId);
@@ -436,8 +405,8 @@ class FfiBridge {
         malloc.free(s);
       }
     } catch (e) {
-      print('FFI getStreamData failed: $e, falling back to mock data');
-      return MockDataService().getStreamData();
+      print('FFI getStreamData failed: $e');
+      rethrow;
     }
   }
 
@@ -445,24 +414,21 @@ class FfiBridge {
   static String getWeatherData() {
     try {
       _ensureLoaded();
-      if (_useMock) return MockDataService().getWeatherData();
-      
       if (_lib == null || _getWeatherData == null) {
-        print('FFI: ❌ Library or function not available for getWeatherData, falling back to mock data');
-        return MockDataService().getWeatherData();
+        throw Exception('FFI: ❌ Library or function not available for getWeatherData');
       }
       
       final ptr = _getWeatherData!.call();
       return _toDartString(ptr);
     } catch (e) {
-      print('FFI getWeatherData failed: $e, falling back to mock data');
-      return MockDataService().getWeatherData();
+      print('FFI getWeatherData failed: $e');
+      rethrow;
     }
   }
 
   static bool updateWeatherLocation(String location) {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _updateWeatherLocation == null) return false;
     final l = _asUtf8(location);
     try {
       final res = _updateWeatherLocation!.call(l);
@@ -476,24 +442,21 @@ class FfiBridge {
   static String getTodoData() {
     try {
       _ensureLoaded();
-      if (_useMock) return MockDataService().getTodoData();
-      
       if (_lib == null || _getTodoData == null) {
-        print('FFI: ❌ Library or function not available for getTodoData, falling back to mock data');
-        return MockDataService().getTodoData();
+        throw Exception('FFI: ❌ Library or function not available for getTodoData');
       }
       
       final ptr = _getTodoData!.call();
       return _toDartString(ptr);
     } catch (e) {
-      print('FFI getTodoData failed: $e, falling back to mock data');
-      return MockDataService().getTodoData();
+      print('FFI getTodoData failed: $e');
+      rethrow;
     }
   }
 
   static bool addTodoItem(String jsonData) {
     _ensureLoaded();
-    if (_useMock) return MockDataService().addTodoItem(jsonData);
+    if (_lib == null || _addTodoItem == null) return false;
     final d = _asUtf8(jsonData);
     try {
       final res = _addTodoItem!.call(d);
@@ -505,7 +468,7 @@ class FfiBridge {
 
   static bool updateTodoItem(String jsonData) {
     _ensureLoaded();
-    if (_useMock) return MockDataService().updateTodoItem(jsonData);
+    if (_lib == null || _updateTodoItem == null) return false;
     final d = _asUtf8(jsonData);
     try {
       final res = _updateTodoItem!.call(d);
@@ -517,7 +480,7 @@ class FfiBridge {
 
   static bool deleteTodoItem(String itemId) {
     _ensureLoaded();
-    if (_useMock) return MockDataService().deleteTodoItem(itemId);
+    if (_lib == null || _deleteTodoItem == null) return false;
     final i = _asUtf8(itemId);
     try {
       final res = _deleteTodoItem!.call(i);
@@ -531,24 +494,21 @@ class FfiBridge {
   static String getMailData() {
     try {
       _ensureLoaded();
-      if (_useMock) return MockDataService().getMailData();
-      
       if (_lib == null || _getMailData == null) {
-        print('FFI: ❌ Library or function not available for getMailData, falling back to mock data');
-        return MockDataService().getMailData();
+        throw Exception('FFI: ❌ Library or function not available for getMailData');
       }
       
       final ptr = _getMailData!.call();
       return _toDartString(ptr);
     } catch (e) {
-      print('FFI getMailData failed: $e, falling back to mock data');
-      return MockDataService().getMailData();
+      print('FFI getMailData failed: $e');
+      rethrow;
     }
   }
 
   static bool configureMailAccount(String jsonConfig) {
     _ensureLoaded();
-    if (_useMock) return true;
+    if (_lib == null || _configureMailAccount == null) return false;
     final c = _asUtf8(jsonConfig);
     try {
       final res = _configureMailAccount!.call(c);

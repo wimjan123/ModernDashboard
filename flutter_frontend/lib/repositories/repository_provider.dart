@@ -6,7 +6,9 @@ import 'news_repository.dart';
 import 'firestore_todo_repository.dart';
 import 'cloud_weather_repository.dart';
 import 'cloud_news_repository.dart';
-import 'legacy_ffi_todo_repository.dart';
+
+// Conditional imports - avoid FFI on web platform
+import 'legacy_ffi_todo_repository.dart' if (dart.library.js_interop) 'mock_todo_repository.dart';
 
 class RepositoryProvider extends ChangeNotifier {
   static RepositoryProvider? _instance;
