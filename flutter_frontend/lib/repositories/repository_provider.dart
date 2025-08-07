@@ -7,9 +7,8 @@ import 'firestore_todo_repository.dart';
 import 'cloud_weather_repository.dart';
 import 'cloud_news_repository.dart';
 
-// Conditional imports - avoid FFI on web platform
-import 'legacy_ffi_todo_repository.dart' if (dart.library.js_interop) 'mock_todo_repository.dart';
-
+/// Repository provider managing Firebase-based data services
+/// Provides centralized access to all repositories with proper initialization
 class RepositoryProvider extends ChangeNotifier {
   static RepositoryProvider? _instance;
   static RepositoryProvider get instance => _instance ??= RepositoryProvider._();
@@ -24,14 +23,12 @@ class RepositoryProvider extends ChangeNotifier {
   bool get isInitialized => _isInitialized;
 
   /// Environment variables and feature flags
-  static const bool _useFirebaseTodos = 
-      bool.fromEnvironment('USE_FIREBASE_TODOS', defaultValue: true);
   static const bool _useCloudFunctions = 
       bool.fromEnvironment('USE_CLOUD_FUNCTIONS', defaultValue: true);
   static const bool _enableOfflineMode = 
       bool.fromEnvironment('ENABLE_OFFLINE_MODE', defaultValue: true);
 
-  /// Initialize all repositories
+  /// Initialize all repositories with Firebase implementations
   Future<void> initialize() async {
     try {
       // Ensure Firebase is initialized first
@@ -39,13 +36,15 @@ class RepositoryProvider extends ChangeNotifier {
         throw Exception('Firebase service must be initialized first');
       }
 
-      // Initialize repositories based on configuration
+      // Initialize all repositories with Firebase implementations
       await _initializeTodoRepository();
       await _initializeWeatherRepository();
       await _initializeNewsRepository();
 
       _isInitialized = true;
       notifyListeners();
+      
+      debugPrint('RepositoryProvider: All repositories initialized with Firebase');
     } catch (e) {
       throw Exception('Failed to initialize repositories: $e');
     }
@@ -75,24 +74,17 @@ class RepositoryProvider extends ChangeNotifier {
     return _newsRepository!;
   }
 
-  /// Initialize todo repository based on configuration
+  /// Initialize todo repository with Firestore implementation
   Future<void> _initializeTodoRepository() async {
     try {
-      if (_useFirebaseTodos) {
-        debugPrint('RepositoryProvider: Using Firebase todo repository');
-        _todoRepository = FirestoreTodoRepository();
-      } else {
-        debugPrint('RepositoryProvider: Using legacy FFI todo repository');
-        _todoRepository = LegacyFfiTodoRepository();
-      }
+      debugPrint('RepositoryProvider: Using Firestore todo repository');
+      _todoRepository = FirestoreTodoRepository();
     } catch (e) {
-      // Fallback to legacy implementation if Firebase fails
-      debugPrint('RepositoryProvider: Firebase todo repository failed, falling back to FFI: $e');
-      _todoRepository = LegacyFfiTodoRepository();
+      throw Exception('Failed to initialize Firestore todo repository: $e');
     }
   }
 
-  /// Initialize weather repository based on configuration
+  /// Initialize weather repository with Cloud implementation
   Future<void> _initializeWeatherRepository() async {
     try {
       debugPrint('RepositoryProvider: Using Cloud weather repository');
@@ -102,7 +94,7 @@ class RepositoryProvider extends ChangeNotifier {
     }
   }
 
-  /// Initialize news repository based on configuration
+  /// Initialize news repository with Cloud implementation
   Future<void> _initializeNewsRepository() async {
     try {
       debugPrint('RepositoryProvider: Using Cloud news repository');
@@ -112,57 +104,27 @@ class RepositoryProvider extends ChangeNotifier {
     }
   }
 
-  /// Switch to Firebase implementations
-  Future<void> switchToFirebase() async {
-    try {
-      debugPrint('RepositoryProvider: Switching to Firebase repositories');
-      
-      // Switch todo repository
-      _todoRepository = FirestoreTodoRepository();
-      
-      // Weather and news already use cloud implementations
-      
-      notifyListeners();
-    } catch (e) {
-      throw Exception('Failed to switch to Firebase: $e');
-    }
-  }
-
-  /// Switch to legacy FFI implementations
-  Future<void> switchToLegacyFFI() async {
-    try {
-      debugPrint('RepositoryProvider: Switching to legacy FFI repositories');
-      
-      // Switch todo repository
-      _todoRepository = LegacyFfiTodoRepository();
-      
-      // Weather and news remain cloud-based as there's no FFI equivalent
-      
-      notifyListeners();
-    } catch (e) {
-      throw Exception('Failed to switch to legacy FFI: $e');
-    }
-  }
-
-  /// Check if Firebase is being used for todos
-  bool get isUsingFirebaseTodos => _todoRepository is FirestoreTodoRepository;
-
-  /// Check if legacy FFI is being used for todos
-  bool get isUsingLegacyTodos => _todoRepository is LegacyFfiTodoRepository;
+  /// Check if all repositories are using Firebase implementations
+  bool get isUsingFirebase => 
+      _todoRepository is FirestoreTodoRepository &&
+      _weatherRepository is CloudWeatherRepository &&
+      _newsRepository is CloudNewsRepository;
 
   /// Get repository implementation info for debugging
   Map<String, String> getRepositoryInfo() {
     return {
-      'todo': _todoRepository.runtimeType.toString(),
-      'weather': _weatherRepository.runtimeType.toString(),
-      'news': _newsRepository.runtimeType.toString(),
-      'firebase_todos': _useFirebaseTodos.toString(),
+      'todo': _todoRepository?.runtimeType.toString() ?? 'Not initialized',
+      'weather': _weatherRepository?.runtimeType.toString() ?? 'Not initialized',
+      'news': _newsRepository?.runtimeType.toString() ?? 'Not initialized',
       'cloud_functions': _useCloudFunctions.toString(),
       'offline_mode': _enableOfflineMode.toString(),
+      'firebase_initialized': FirebaseService.instance.isInitialized.toString(),
+      'user_authenticated': FirebaseService.instance.isAuthenticated().toString(),
     };
   }
 
   /// Clean up resources
+  @override
   Future<void> dispose() async {
     _todoRepository = null;
     _weatherRepository = null;
@@ -175,6 +137,29 @@ class RepositoryProvider extends ChangeNotifier {
   Future<void> reset() async {
     await dispose();
     await initialize();
+  }
+
+  /// Check repository health and connectivity
+  Future<Map<String, bool>> checkHealth() async {
+    final health = <String, bool>{};
+    
+    try {
+      // Check Firebase connectivity
+      health['firebase'] = FirebaseService.instance.isInitialized;
+      
+      // Check if user is authenticated
+      health['auth'] = FirebaseService.instance.isAuthenticated();
+      
+      // Check if repositories are initialized
+      health['todo_repo'] = _todoRepository != null;
+      health['weather_repo'] = _weatherRepository != null;
+      health['news_repo'] = _newsRepository != null;
+      
+    } catch (e) {
+      debugPrint('Repository health check failed: $e');
+    }
+    
+    return health;
   }
 }
 
