@@ -1,35 +1,32 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'core/theme/dark_theme.dart';
 import 'screens/dashboard_screen.dart';
-import 'services/cpp_bridge.dart';
-
-// Conditional imports for FFI (web uses stub)
-import 'services/ffi_bridge.dart' if (dart.library.html) 'services/ffi_bridge_web.dart';
+import 'firebase/firebase_service.dart';
+import 'repositories/repository_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize backend engine once at app startup.
-  bool inited = false;
+  // Initialize Firebase services
+  bool initialized = false;
   try {
-    if (kIsWeb) {
-      // Web platform - use CppBridge mock data
-      inited = CppBridge.initializeEngine();
-    } else {
-      // Native platform - try FFI first, fallback to CppBridge
-      try {
-        inited = FfiBridge.initializeEngine();
-      } catch (_) {
-        inited = CppBridge.initializeEngine();
-      }
+    await FirebaseService.instance.initializeFirebase();
+    await RepositoryProvider.instance.initialize();
+    initialized = true;
+  } catch (e) {
+    // Try to retry initialization
+    try {
+      await FirebaseService.instance.retryInitialization();
+      await RepositoryProvider.instance.initialize();
+      initialized = true;
+    } catch (retryError) {
+      debugPrint('Failed to initialize Firebase after retry: $retryError');
+      initialized = false;
     }
-  } catch (_) {
-    // Final fallback to mock bridge
-    inited = CppBridge.initializeEngine();
   }
 
-  runApp(ModernDashboardApp(initialized: inited));
+  runApp(ModernDashboardApp(initialized: initialized));
 }
 
 class ModernDashboardApp extends StatelessWidget {
@@ -38,11 +35,94 @@ class ModernDashboardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Modern Dashboard',
-      theme: DarkThemeData.theme,
-      home: const DashboardScreen(),
-      debugShowCheckedModeBanner: false,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<RepositoryProvider>.value(
+          value: RepositoryProvider.instance,
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Modern Dashboard',
+        theme: DarkThemeData.theme,
+        home: initialized 
+            ? const DashboardScreen() 
+            : const InitializationErrorScreen(),
+        debugShowCheckedModeBanner: false,
+      ),
+    );
+  }
+}
+
+class InitializationErrorScreen extends StatelessWidget {
+  const InitializationErrorScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Failed to Initialize Firebase',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Please check your Firebase configuration\nand try restarting the app.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                // Try to reinitialize
+                try {
+                  await FirebaseService.instance.retryInitialization();
+                  await RepositoryProvider.instance.reset();
+                  
+                  // Restart app (this is a simple approach)
+                  if (context.mounted) {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const DashboardScreen(),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Retry failed: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
