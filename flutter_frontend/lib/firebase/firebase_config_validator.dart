@@ -219,6 +219,27 @@ class FirebaseConfigValidator {
       }
     }
 
+    if (options.storageBucket != null && options.storageBucket!.isNotEmpty) {
+      if (!isValidStorageBucket(options.storageBucket!)) {
+        errors.add('Invalid storageBucket format');
+        fieldErrors['storageBucket'] = 'Storage bucket must be a valid Firebase storage bucket URL ending with .appspot.com';
+      }
+    }
+
+    if (options.measurementId != null && options.measurementId!.isNotEmpty) {
+      if (!isValidMeasurementId(options.measurementId!)) {
+        errors.add('Invalid measurementId format');
+        fieldErrors['measurementId'] = 'Measurement ID must follow format: G-XXXXXXXXXX (G- followed by 10 alphanumeric characters)';
+      }
+    }
+
+    if (options.databaseURL != null && options.databaseURL!.isNotEmpty) {
+      if (!isValidDatabaseURL(options.databaseURL!)) {
+        errors.add('Invalid databaseURL format');
+        fieldErrors['databaseURL'] = 'Database URL must be a valid Firebase Realtime Database URL';
+      }
+    }
+
     if (isValidConfigValue(options.appId) && 
         isValidConfigValue(options.messagingSenderId)) {
       final projectNumber = extractProjectNumberFromAppId(options.appId);

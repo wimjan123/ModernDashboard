@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../firebase/firebase_service.dart';
 import 'todo_repository.dart';
 import 'weather_repository.dart';
@@ -88,11 +89,30 @@ class RepositoryProvider extends ChangeNotifier {
   /// Initialize todo repository with Firestore implementation
   Future<void> _initializeTodoRepository() async {
     try {
+      // Check authentication status directly before initialization
+      if (!FirebaseService.instance.isAuthenticated()) {
+        debugPrint('Todo repository requires authentication but user is not authenticated');
+        _authenticationRequired = true;
+        _todoRepository = null;
+        return;
+      }
+      
       debugPrint('RepositoryProvider: Using Firestore todo repository');
       _todoRepository = FirestoreTodoRepository();
+    } on FirebaseException catch (e) {
+      debugPrint('Firebase error initializing todo repository: ${e.code} - ${e.message}');
+      // Handle specific Firebase authentication errors
+      if (e.code == 'unauthenticated' || e.code == 'permission-denied') {
+        debugPrint('Todo repository requires authentication but user is not authenticated');
+        _authenticationRequired = true;
+        _todoRepository = null;
+      } else {
+        throw Exception('Failed to initialize Firestore todo repository: ${e.message}');
+      }
     } catch (e) {
       debugPrint('Failed to initialize Firestore todo repository: $e');
-      if (e.toString().contains('authentication') || e.toString().contains('User not authenticated')) {
+      // Check if the error is authentication-related by checking Firebase auth state
+      if (!FirebaseService.instance.isAuthenticated() && e.toString().contains('User not authenticated')) {
         debugPrint('Todo repository requires authentication but user is not authenticated');
         _authenticationRequired = true;
         _todoRepository = null;
