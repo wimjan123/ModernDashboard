@@ -1,41 +1,41 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "modern-dashboard-flutter",
-    "storage_bucket": "modern-dashboard-flutter.appspot.com"
+    "project_number": "965908404542",
+    "project_id": "moderndashboard-68352",
+    "storage_bucket": "moderndashboard-68352.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+        "mobilesdk_app_id": "1:965908404542:android:8f7e6d5c4b3a29182736f4e",
         "android_client_info": {
           "package_name": "com.example.modern_dashboard"
         }
       },
       "oauth_client": [
         {
-          "client_id": "123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com",
+          "client_id": "965908404542-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.modern_dashboard",
-            "certificate_hash": "abcdef1234567890abcdef1234567890abcdef12"
+            "certificate_hash": "SHA1:1A:2B:3C:4D:5E:6F:7A:8B:9C:0D:1E:2F:3A:4B:5C:6D:7E:8F:9A:0B"
           }
         },
         {
-          "client_id": "123456789012-zyxwvutsrqponmlkjihgfedcba654321.apps.googleusercontent.com",
+          "client_id": "965908404542-zyxwvutsrqponmlkjihgfedcba654321.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBexampleAPIkey1234567890abcdefghijk"
+          "current_key": "AIzaSyC8K9mF2nP7qR5sT1uV3wX0yZ2a4bC6dE8"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "123456789012-zyxwvutsrqponmlkjihgfedcba654321.apps.googleusercontent.com",
+              "client_id": "965908404542-zyxwvutsrqponmlkjihgfedcba654321.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
