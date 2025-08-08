@@ -82,7 +82,7 @@ class FirebaseConfigValidator {
     
     return apiKey.length >= 20 && 
            apiKey.startsWith('AIza') &&
-           apiKey.contains(RegExp(r'^[A-Za-z0-9_-]+$'));
+           RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(apiKey);
   }
 
   static String? extractProjectNumberFromAppId(String appId) {
