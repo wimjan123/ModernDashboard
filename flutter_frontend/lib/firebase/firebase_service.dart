@@ -105,6 +105,12 @@ class FirebaseService {
   /// Check if Firebase services are available
   Future<bool> _checkFirebaseAvailability() async {
     try {
+      // Check network connectivity first before attempting Firestore operation
+      if (!await _checkNetworkConnectivity()) {
+        _logger.d('Network connectivity not available, Firebase services unavailable');
+        return false;
+      }
+      
       if (_firestore == null) {
         return false;
       }
