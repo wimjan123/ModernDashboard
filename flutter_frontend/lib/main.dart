@@ -16,14 +16,23 @@ Future<void> main() async {
   bool initialized = false;
   bool needsMigration = false;
   bool configValidationFailed = false;
+  bool offlineModeActive = false;
   InitializationException? initError;
   
   try {
     await FirebaseService.instance.initializeFirebase();
     await RepositoryProvider.instance.initialize();
     
-    // Check if migration is needed
-    needsMigration = await MigrationService.instance.isMigrationNeeded();
+    // Check offline mode status
+    offlineModeActive = RepositoryProvider.instance.offlineModeActive;
+    
+    // Check if migration is needed (skip if offline mode)
+    if (!offlineModeActive) {
+      needsMigration = await MigrationService.instance.isMigrationNeeded();
+    } else {
+      needsMigration = false; // Skip migration in offline mode
+      debugPrint('Migration checks skipped in offline mode');
+    }
     
     initialized = true;
   } catch (e) {
@@ -42,8 +51,16 @@ Future<void> main() async {
         await FirebaseService.instance.retryInitialization();
         await RepositoryProvider.instance.initialize();
         
-        // Check migration after retry
-        needsMigration = await MigrationService.instance.isMigrationNeeded();
+        // Check offline mode status after retry
+        offlineModeActive = RepositoryProvider.instance.offlineModeActive;
+        
+        // Check migration after retry (skip if offline mode)
+        if (!offlineModeActive) {
+          needsMigration = await MigrationService.instance.isMigrationNeeded();
+        } else {
+          needsMigration = false;
+          debugPrint('Migration checks skipped in offline mode after retry');
+        }
         
         initialized = true;
         initError = null; // Clear error on successful retry
@@ -60,12 +77,23 @@ Future<void> main() async {
         await FirebaseService.instance.initializeFirebase(enableAnonymousAuth: false);
         await RepositoryProvider.instance.initialize();
         
+        // Check offline mode status after fallback
+        offlineModeActive = RepositoryProvider.instance.offlineModeActive;
+        
         debugPrint('Firebase initialized in fallback mode without anonymous authentication');
         initialized = true;
         initError = null;
       } catch (fallbackError) {
-        debugPrint('Fallback initialization also failed: $fallbackError');
-        initialized = false;
+        // Check if repositories initialized in offline mode as a final fallback
+        if (RepositoryProvider.instance.offlineModeActive) {
+          offlineModeActive = true;
+          initialized = true;
+          initError = null;
+          debugPrint('Using offline mode as final fallback after config error');
+        } else {
+          debugPrint('Fallback initialization also failed: $fallbackError');
+          initialized = false;
+        }
       }
     }
   }
@@ -75,6 +103,7 @@ Future<void> main() async {
     needsMigration: needsMigration,
     initError: initError,
     configValidationFailed: configValidationFailed,
+    offlineModeActive: offlineModeActive,
   ));
 }
 
@@ -83,6 +112,7 @@ class ModernDashboardApp extends StatelessWidget {
   final bool needsMigration;
   final InitializationException? initError;
   final bool configValidationFailed;
+  final bool offlineModeActive;
   
   const ModernDashboardApp({
     super.key, 
@@ -90,6 +120,7 @@ class ModernDashboardApp extends StatelessWidget {
     this.needsMigration = false,
     this.initError,
     this.configValidationFailed = false,
+    this.offlineModeActive = false,
   });
 
   @override
@@ -107,6 +138,7 @@ class ModernDashboardApp extends StatelessWidget {
             ? InitializationErrorScreen(
                 error: initError,
                 configValidationFailed: configValidationFailed,
+                offlineModeActive: offlineModeActive,
               )
             : needsMigration
                 ? const MigrationScreen()
@@ -120,11 +152,13 @@ class ModernDashboardApp extends StatelessWidget {
 class InitializationErrorScreen extends StatelessWidget {
   final InitializationException? error;
   final bool configValidationFailed;
+  final bool offlineModeActive;
   
   const InitializationErrorScreen({
     super.key, 
     this.error,
     this.configValidationFailed = false,
+    this.offlineModeActive = false,
   });
 
   @override
@@ -135,16 +169,18 @@ class InitializationErrorScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
+            Icon(
+              offlineModeActive ? Icons.cloud_off : Icons.error_outline,
+              color: offlineModeActive ? Colors.amber : Colors.red,
               size: 64,
             ),
             const SizedBox(height: 16),
             Text(
-              configValidationFailed 
-                ? 'Firebase Configuration Error'
-                : 'Failed to Initialize Firebase',
+              offlineModeActive
+                ? 'Running in Offline Mode'
+                : configValidationFailed 
+                  ? 'Firebase Configuration Error'
+                  : 'Failed to Initialize Firebase',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -153,9 +189,11 @@ class InitializationErrorScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              configValidationFailed
-                ? 'Please check your Firebase configuration files\nand ensure all values are properly set.'
-                : 'Please check your Firebase configuration\nand try restarting the app.',
+              offlineModeActive
+                ? 'Limited functionality available.\nTodo, Weather, and News features work offline.\nTry reconnecting when network is available.'
+                : configValidationFailed
+                  ? 'Please check your Firebase configuration files\nand ensure all values are properly set.'
+                  : 'Please check your Firebase configuration\nand try restarting the app.',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white70,
@@ -294,7 +332,60 @@ class InitializationErrorScreen extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 24),
-            if (!configValidationFailed)
+            if (offlineModeActive)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      // Navigate to dashboard in offline mode
+                      if (context.mounted) {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const DashboardScreen(),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Continue Offline'),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: () async {
+                      // Try to reconnect
+                      try {
+                        await RepositoryProvider.instance.switchToOnlineMode();
+                        if (context.mounted) {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (context) => const DashboardScreen(),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Reconnection failed: $e'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Try Reconnect'),
+                  ),
+                ],
+              )
+            else if (!configValidationFailed)
               ElevatedButton(
               onPressed: () async {
                 // Try to reinitialize
