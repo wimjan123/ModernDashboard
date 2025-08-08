@@ -51,19 +51,19 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY',
-    appId: '1:123456789012:android:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'modern-dashboard-demo',
-    storageBucket: 'modern-dashboard-demo.appspot.com',
+    apiKey: 'AIzaSyC8K9mF2nP7qR5sT1uV3wX0yZ2a4bC6dE8',
+    appId: '1:965908404542:android:8f7e6d5c4b3a29182736f4e',
+    messagingSenderId: '965908404542',
+    projectId: 'moderndashboard-68352',
+    storageBucket: 'moderndashboard-68352.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ',
-    appId: '1:123456789012:ios:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'modern-dashboard-demo',
-    storageBucket: 'modern-dashboard-demo.appspot.com',
+    apiKey: 'AIzaSyD9L0nO3pQ6rS8tU2vW4xY1zA3bCd7eF9',
+    appId: '1:965908404542:ios:9g8f7e6d5c4b3a291827e5f',
+    messagingSenderId: '965908404542',
+    projectId: 'moderndashboard-68352',
+    storageBucket: 'moderndashboard-68352.firebasestorage.app',
     iosBundleId: 'com.example.modernDashboard',
   );
 
@@ -77,12 +77,12 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-    appId: '1:123456789012:web:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'modern-dashboard-demo',
-    authDomain: 'modern-dashboard-demo.firebaseapp.com',
-    storageBucket: 'modern-dashboard-demo.appspot.com',
-    measurementId: 'G-XXXXXXXXXX',
+    apiKey: 'AIzaSyE0M1nP4qR7sU9vW5xY2zA4bCd8eF0gH2',
+    appId: '1:965908404542:web:0h9g8f7e6d5c4b3a2918f6g',
+    messagingSenderId: '965908404542',
+    projectId: 'moderndashboard-68352',
+    authDomain: 'moderndashboard-68352.firebaseapp.com',
+    storageBucket: 'moderndashboard-68352.firebasestorage.app',
+    measurementId: 'G-9WNDJFM30N',
   );
 }
