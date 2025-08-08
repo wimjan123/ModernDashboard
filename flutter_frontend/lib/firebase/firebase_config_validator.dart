@@ -89,7 +89,7 @@ class FirebaseConfigValidator {
   static bool isValidStorageBucket(String storageBucket) {
     if (!isValidConfigValue(storageBucket)) return false;
     
-    final regex = RegExp(r'^[a-z0-9][a-z0-9-_.]*[a-z0-9]\.appspot\.com$');
+    final regex = RegExp(r'^[a-z0-9][a-z0-9-_.]*[a-z0-9]\.(appspot\.com|firebasestorage\.app)$');
     return regex.hasMatch(storageBucket) && storageBucket.length <= 222;
   }
 
@@ -222,7 +222,7 @@ class FirebaseConfigValidator {
     if (options.storageBucket != null && options.storageBucket!.isNotEmpty) {
       if (!isValidStorageBucket(options.storageBucket!)) {
         errors.add('Invalid storageBucket format');
-        fieldErrors['storageBucket'] = 'Storage bucket must be a valid Firebase storage bucket URL ending with .appspot.com';
+        fieldErrors['storageBucket'] = 'Storage bucket must be a valid Firebase storage bucket URL ending with .appspot.com or .firebasestorage.app';
       }
     }
 
