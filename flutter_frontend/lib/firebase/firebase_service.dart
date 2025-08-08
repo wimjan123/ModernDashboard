@@ -25,7 +25,7 @@ class FirebaseService {
   // Offline mode state management
   bool _isOfflineMode = false;
   StreamController<bool> _offlineModeController = StreamController<bool>.broadcast();
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription? _connectivitySubscription;
 
   bool get isInitialized => _app != null;
   bool get isAnonymousAuthEnabled => _anonymousAuthEnabled;
@@ -64,9 +64,14 @@ class FirebaseService {
   void _startConnectivityMonitoring() {
     try {
       _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
-        (ConnectivityResult result) {
-          // Convert single result to list for consistent handling
-          List<ConnectivityResult> results = [result];
+        (dynamic connectivityResult) {
+          // Handle both single result and list result for different versions
+          late List<ConnectivityResult> results;
+          if (connectivityResult is List<ConnectivityResult>) {
+            results = connectivityResult;
+          } else {
+            results = [connectivityResult as ConnectivityResult];
+          }
           
           final isConnected = results.contains(ConnectivityResult.mobile) ||
               results.contains(ConnectivityResult.wifi) ||

@@ -45,15 +45,20 @@ class RepositoryProvider extends ChangeNotifier {
   Future<void> initialize() async {
     try {
       // Subscribe to Firebase offline mode changes
-      _offlineModeSubscription = FirebaseService.instance.offlineModeStream.listen((isOffline) {
-        final wasOffline = _offlineModeActive;
-        _offlineModeActive = isOffline;
-        
-        if (wasOffline != _offlineModeActive) {
-          debugPrint('RepositoryProvider: Offline mode changed to $_offlineModeActive');
-          notifyListeners();
-        }
-      });
+      _offlineModeSubscription = FirebaseService.instance.offlineModeStream.listen(
+        (isOffline) {
+          final wasOffline = _offlineModeActive;
+          _offlineModeActive = isOffline;
+          
+          if (wasOffline != _offlineModeActive) {
+            debugPrint('RepositoryProvider: Offline mode changed to $_offlineModeActive');
+            notifyListeners();
+          }
+        },
+        onError: (error) {
+          debugPrint('RepositoryProvider: Error in offline mode stream: $error');
+        },
+      );
 
       // Check if Firebase is initialized and offline mode
       final firebaseInitialized = FirebaseService.instance.isInitialized;
