@@ -41,13 +41,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-    appId: '1:123456789012:web:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'modern-dashboard-demo',
-    authDomain: 'modern-dashboard-demo.firebaseapp.com',
-    storageBucket: 'modern-dashboard-demo.appspot.com',
-    measurementId: 'G-XXXXXXXXXX',
+    apiKey: 'AIzaSyAUouZDuLrmsJcAqAdeTr7b6XYmT8KLkKE',
+    appId: '1:965908404542:web:126887b90ad4df7452f46f',
+    messagingSenderId: '965908404542',
+    projectId: 'moderndashboard-68352',
+    authDomain: 'moderndashboard-68352.firebaseapp.com',
+    storageBucket: 'moderndashboard-68352.firebasestorage.app',
+    measurementId: 'G-8VMCJEM29M',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -68,11 +68,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ',
-    appId: '1:123456789012:ios:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'modern-dashboard-demo',
-    storageBucket: 'modern-dashboard-demo.appspot.com',
+    apiKey: 'AIzaSyA93Y6ChDQMbVserp7PEbmdZXO6mphppt4',
+    appId: '1:965908404542:ios:3a9ef7337e18c0f152f46f',
+    messagingSenderId: '965908404542',
+    projectId: 'moderndashboard-68352',
+    storageBucket: 'moderndashboard-68352.firebasestorage.app',
     iosBundleId: 'com.example.modernDashboard',
   );
 
