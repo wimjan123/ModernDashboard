@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,11 +22,20 @@ class FirebaseService {
   User? _currentUser;
   bool _anonymousAuthEnabled = true;
 
+  // Offline mode state management
+  bool _isOfflineMode = false;
+  StreamController<bool> _offlineModeController = StreamController<bool>.broadcast();
+  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+
   bool get isInitialized => _app != null;
   bool get isAnonymousAuthEnabled => _anonymousAuthEnabled;
   User? get currentUser => _currentUser;
   FirebaseFirestore get firestore => _firestore!;
   FirebaseAuth get auth => _auth!;
+  
+  // Offline mode getters
+  bool get isOfflineMode => _isOfflineMode;
+  Stream<bool> get offlineModeStream => _offlineModeController.stream;
 
   /// Check network connectivity before Firebase operations
   Future<bool> _checkNetworkConnectivity() async {
@@ -47,6 +57,98 @@ class FirebaseService {
     } catch (e) {
       _logger.w('Failed to check network connectivity: $e');
       return false;
+    }
+  }
+
+  /// Start monitoring connectivity changes
+  void _startConnectivityMonitoring() {
+    try {
+      _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+        (ConnectivityResult result) {
+          // Convert single result to list for consistent handling
+          List<ConnectivityResult> results = [result];
+          
+          final isConnected = results.contains(ConnectivityResult.mobile) ||
+              results.contains(ConnectivityResult.wifi) ||
+              results.contains(ConnectivityResult.ethernet);
+          
+          final wasOffline = _isOfflineMode;
+          _isOfflineMode = !isConnected;
+          
+          if (wasOffline != _isOfflineMode) {
+            _logger.i('Connectivity changed - offline mode: $_isOfflineMode');
+            _offlineModeController.add(_isOfflineMode);
+          }
+        },
+        onError: (error) {
+          _logger.w('Connectivity monitoring error: $error');
+        },
+      );
+      _logger.d('Connectivity monitoring started');
+    } catch (e) {
+      _logger.w('Failed to start connectivity monitoring: $e');
+    }
+  }
+
+  /// Stop monitoring connectivity changes
+  void _stopConnectivityMonitoring() {
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
+    _logger.d('Connectivity monitoring stopped');
+  }
+
+  /// Check if Firebase services are available
+  Future<bool> _checkFirebaseAvailability() async {
+    try {
+      if (_firestore == null) {
+        return false;
+      }
+      
+      // Try a simple Firestore operation with a short timeout
+      final testDoc = _firestore!.collection('_test').doc('connectivity');
+      await testDoc.get().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw TimeoutException('Firebase availability check timeout'),
+      );
+      
+      _logger.d('Firebase services are available');
+      return true;
+    } on FirebaseException catch (e) {
+      final networkRelatedCodes = ['unavailable', 'deadline-exceeded', 'network-request-failed'];
+      if (networkRelatedCodes.contains(e.code)) {
+        _logger.w('Firebase unavailable due to network: ${e.code}');
+        return false;
+      }
+      _logger.w('Firebase availability check failed: ${e.code}');
+      return false;
+    } catch (e) {
+      _logger.w('Firebase availability check failed: $e');
+      return false;
+    }
+  }
+
+  /// Detect offline mode based on network and Firebase availability
+  Future<void> _detectOfflineMode() async {
+    try {
+      final hasNetwork = await _checkNetworkConnectivity();
+      final firebaseAvailable = hasNetwork ? await _checkFirebaseAvailability() : false;
+      
+      final wasOffline = _isOfflineMode;
+      _isOfflineMode = !hasNetwork || !firebaseAvailable;
+      
+      if (wasOffline != _isOfflineMode) {
+        _logger.i('Offline mode changed to: $_isOfflineMode');
+        _offlineModeController.add(_isOfflineMode);
+      }
+      
+      if (_isOfflineMode) {
+        final reason = !hasNetwork ? 'no network connection' : 'Firebase unavailable';
+        _logger.w('Offline mode activated: $reason');
+      }
+    } catch (e) {
+      _logger.w('Error detecting offline mode: $e');
+      _isOfflineMode = true;
+      _offlineModeController.add(_isOfflineMode);
     }
   }
 
@@ -155,8 +257,19 @@ class FirebaseService {
         _anonymousAuthEnabled = false;
       }
       
+      // Start connectivity monitoring and detect initial offline mode
+      _startConnectivityMonitoring();
+      await _detectOfflineMode();
+      
       _logger.i('Firebase initialization completed successfully');
     } on FirebaseException catch (e) {
+      // Set offline mode for network-related Firebase errors
+      final networkRelatedCodes = ['no-network', 'network-request-failed', 'unavailable'];
+      if (networkRelatedCodes.contains(e.code)) {
+        _isOfflineMode = true;
+        _offlineModeController.add(_isOfflineMode);
+        _logger.w('Firebase initialization failed due to network, offline mode activated: ${e.code}');
+      }
       _logger.e('Firebase initialization failed', error: e, stackTrace: StackTrace.current);
       throw InitializationException(
         e.code,
@@ -277,5 +390,32 @@ class FirebaseService {
       throw Exception('User not authenticated');
     }
     return _firestore!.collection('users').doc(userId);
+  }
+
+  /// Set offline mode manually (useful for testing)
+  void setOfflineMode(bool offline) {
+    final wasOffline = _isOfflineMode;
+    _isOfflineMode = offline;
+    
+    if (wasOffline != _isOfflineMode) {
+      _logger.i('Manual offline mode change: $_isOfflineMode');
+      _offlineModeController.add(_isOfflineMode);
+    }
+  }
+
+  /// Get reason for offline mode
+  String getOfflineReason() {
+    if (!_isOfflineMode) {
+      return 'Online';
+    }
+    
+    return 'Offline mode is active due to network or Firebase connectivity issues';
+  }
+
+  /// Dispose resources and cleanup
+  void dispose() {
+    _stopConnectivityMonitoring();
+    _offlineModeController.close();
+    _logger.d('FirebaseService disposed');
   }
 }
