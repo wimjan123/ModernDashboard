@@ -233,7 +233,12 @@ class FirebaseService {
         await initializeFirebase(enableAnonymousAuth: enableAnonymousAuth);
         _logger.i('Firebase initialization retry successful');
         return;
-      } on InitializationException {
+      } on InitializationException catch (e) {
+        // Skip retries for configuration validation errors that won't resolve with retries
+        if (e.code == 'invalid-config' || e.code == 'unsupported-platform') {
+          _logger.e('Skipping retries for configuration error: ${e.code}');
+          rethrow;
+        }
         rethrow;
       } catch (e) {
         retryCount++;
