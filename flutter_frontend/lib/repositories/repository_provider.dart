@@ -20,7 +20,10 @@ class RepositoryProvider extends ChangeNotifier {
   NewsRepository? _newsRepository;
   
   bool _isInitialized = false;
+  bool _authenticationRequired = false;
+  
   bool get isInitialized => _isInitialized;
+  bool get requiresAuthentication => _authenticationRequired;
 
   /// Environment variables and feature flags
   static const bool _useCloudFunctions = 
@@ -34,6 +37,11 @@ class RepositoryProvider extends ChangeNotifier {
       // Ensure Firebase is initialized first
       if (!FirebaseService.instance.isInitialized) {
         throw Exception('Firebase service must be initialized first');
+      }
+      
+      // Check authentication status and log warning if needed
+      if (FirebaseService.instance.isInitialized && !FirebaseService.instance.isAuthenticated()) {
+        debugPrint('RepositoryProvider: Firebase initialized but user not authenticated. Some repositories may have limited functionality.');
       }
 
       // Initialize all repositories with Firebase implementations
@@ -53,6 +61,9 @@ class RepositoryProvider extends ChangeNotifier {
   /// Get TodoRepository instance
   TodoRepository get todoRepository {
     if (_todoRepository == null) {
+      if (_authenticationRequired && !FirebaseService.instance.isAuthenticated()) {
+        throw Exception('Repository requires user authentication. Please enable anonymous authentication or sign in.');
+      }
       throw Exception('TodoRepository not initialized. Call initialize() first.');
     }
     return _todoRepository!;
@@ -80,7 +91,14 @@ class RepositoryProvider extends ChangeNotifier {
       debugPrint('RepositoryProvider: Using Firestore todo repository');
       _todoRepository = FirestoreTodoRepository();
     } catch (e) {
-      throw Exception('Failed to initialize Firestore todo repository: $e');
+      debugPrint('Failed to initialize Firestore todo repository: $e');
+      if (e.toString().contains('authentication') || e.toString().contains('User not authenticated')) {
+        debugPrint('Todo repository requires authentication but user is not authenticated');
+        _authenticationRequired = true;
+        _todoRepository = null;
+      } else {
+        throw Exception('Failed to initialize Firestore todo repository: $e');
+      }
     }
   }
 
@@ -110,6 +128,17 @@ class RepositoryProvider extends ChangeNotifier {
       _weatherRepository is CloudWeatherRepository &&
       _newsRepository is CloudNewsRepository;
 
+  /// Get list of repositories that are unavailable due to authentication requirements
+  List<String> getUnavailableRepositories() {
+    final unavailable = <String>[];
+    
+    if (_todoRepository == null && _authenticationRequired) {
+      unavailable.add('TodoRepository');
+    }
+    
+    return unavailable;
+  }
+  
   /// Get repository implementation info for debugging
   Map<String, String> getRepositoryInfo() {
     return {
@@ -120,6 +149,8 @@ class RepositoryProvider extends ChangeNotifier {
       'offline_mode': _enableOfflineMode.toString(),
       'firebase_initialized': FirebaseService.instance.isInitialized.toString(),
       'user_authenticated': FirebaseService.instance.isAuthenticated().toString(),
+      'auth_required': _authenticationRequired.toString(),
+      'anonymous_auth_enabled': FirebaseService.instance.isAnonymousAuthEnabled.toString(),
     };
   }
 
@@ -148,10 +179,11 @@ class RepositoryProvider extends ChangeNotifier {
       health['firebase'] = FirebaseService.instance.isInitialized;
       
       // Check if user is authenticated
-      health['auth'] = FirebaseService.instance.isAuthenticated();
+      health['auth_available'] = FirebaseService.instance.isAuthenticated();
+      health['auth_required'] = _authenticationRequired;
       
-      // Check if repositories are initialized
-      health['todo_repo'] = _todoRepository != null;
+      // Check if repositories are initialized and available
+      health['todo_repo'] = _todoRepository != null && (!_authenticationRequired || FirebaseService.instance.isAuthenticated());
       health['weather_repo'] = _weatherRepository != null;
       health['news_repo'] = _newsRepository != null;
       
