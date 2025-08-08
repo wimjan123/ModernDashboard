@@ -13,30 +13,32 @@ class MockTodoRepository implements TodoRepository {
     _mockDataService.initialize();
     _emitTodos();
   }
+
+  /// Convert mock data format to TodoItem
+  TodoItem _convertMockDataToTodoItem(Map<String, dynamic> json) {
+    final todoJson = {
+      'id': json['id'],
+      'title': json['title'],
+      'description': json['description'] ?? '',
+      'category': json['category'],
+      'priority': json['priority'],
+      'status': json['completed'] == true ? 'completed' : 'pending',
+      'created_at': json['createdAt'] != null 
+          ? (json['createdAt'] as int) * 1000
+          : DateTime.now().millisecondsSinceEpoch,
+      'updated_at': DateTime.now().millisecondsSinceEpoch,
+      'due_date': json['dueDate'] != null 
+          ? (json['dueDate'] as int) * 1000
+          : null,
+      'tags': <String>[],
+      'user_id': 'mock_user',
+    };
+    return TodoItem.fromJson(todoJson);
+  }
   /// Emit current todos to the stream
   void _emitTodos() {
     try {
-      final todos = _mockDataService.todoItems.map((json) {
-        // Convert mock data format to TodoItem format
-        final todoJson = {
-          'id': json['id'],
-          'title': json['title'],
-          'description': json['description'] ?? '',
-          'category': json['category'],
-          'priority': json['priority'],
-          'status': json['completed'] == true ? 'completed' : 'pending',
-          'created_at': json['createdAt'] != null 
-              ? (json['createdAt'] as int) * 1000 // Convert from seconds to milliseconds
-              : DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-          'due_date': json['dueDate'] != null 
-              ? (json['dueDate'] as int) * 1000 // Convert from seconds to milliseconds
-              : null,
-          'tags': <String>[],
-          'user_id': 'mock_user',
-        };
-        return TodoItem.fromJson(todoJson);
-      }).toList();
+      final todos = _mockDataService.todoItems.map(_convertMockDataToTodoItem).toList();
       
       _todosController.add(todos);
       debugPrint('Emitted ${todos.length} todos to stream');
@@ -142,26 +144,7 @@ class MockTodoRepository implements TodoRepository {
         return title.contains(queryLower) || description.contains(queryLower);
       });
       
-      final todos = filteredItems.map((json) {
-        final todoJson = {
-          'id': json['id'],
-          'title': json['title'],
-          'description': json['description'] ?? '',
-          'category': json['category'],
-          'priority': json['priority'],
-          'status': json['completed'] == true ? 'completed' : 'pending',
-          'created_at': json['createdAt'] != null 
-              ? (json['createdAt'] as int) * 1000
-              : DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-          'due_date': json['dueDate'] != null 
-              ? (json['dueDate'] as int) * 1000
-              : null,
-          'tags': <String>[],
-          'user_id': 'mock_user',
-        };
-        return TodoItem.fromJson(todoJson);
-      }).toList();
+      final todos = filteredItems.map(_convertMockDataToTodoItem).toList();
       
       debugPrint('Search "$query" returned ${todos.length} results');
       return todos;
@@ -235,26 +218,7 @@ class MockTodoRepository implements TodoRepository {
         return (item['category']?.toString() ?? 'general') == category;
       });
       
-      final todos = filteredItems.map((json) {
-        final todoJson = {
-          'id': json['id'],
-          'title': json['title'],
-          'description': json['description'] ?? '',
-          'category': json['category'],
-          'priority': json['priority'],
-          'status': json['completed'] == true ? 'completed' : 'pending',
-          'created_at': json['createdAt'] != null 
-              ? (json['createdAt'] as int) * 1000
-              : DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-          'due_date': json['dueDate'] != null 
-              ? (json['dueDate'] as int) * 1000
-              : null,
-          'tags': <String>[],
-          'user_id': 'mock_user',
-        };
-        return TodoItem.fromJson(todoJson);
-      }).toList();
+      final todos = filteredItems.map(_convertMockDataToTodoItem).toList();
       
       debugPrint('Category "$category" has ${todos.length} todos');
       return todos;
@@ -270,26 +234,7 @@ class MockTodoRepository implements TodoRepository {
         return (item['priority']?.toString() ?? 'medium') == priority;
       });
       
-      final todos = filteredItems.map((json) {
-        final todoJson = {
-          'id': json['id'],
-          'title': json['title'],
-          'description': json['description'] ?? '',
-          'category': json['category'],
-          'priority': json['priority'],
-          'status': json['completed'] == true ? 'completed' : 'pending',
-          'created_at': json['createdAt'] != null 
-              ? (json['createdAt'] as int) * 1000
-              : DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-          'due_date': json['dueDate'] != null 
-              ? (json['dueDate'] as int) * 1000
-              : null,
-          'tags': <String>[],
-          'user_id': 'mock_user',
-        };
-        return TodoItem.fromJson(todoJson);
-      }).toList();
+      final todos = filteredItems.map(_convertMockDataToTodoItem).toList();
       
       debugPrint('Priority "$priority" has ${todos.length} todos');
       return todos;
