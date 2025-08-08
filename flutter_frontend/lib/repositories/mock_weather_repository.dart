@@ -113,7 +113,7 @@ class MockWeatherRepository implements WeatherRepository {
     // Apply location-specific temperature adjustments
     final baseTemp = _adjustTemperatureForLocation(location);
     final tempVariation = _random.nextDouble() * 8 - 4; // ±4°C variation
-    final finalTemp = (baseTemp + tempVariation).clamp(-30, 50);
+    final finalTemp = (baseTemp + tempVariation).clamp(-30, 50).toDouble();
 
     final conditions = _getRandomWeatherCondition();
     final now = DateTime.now();
@@ -136,26 +136,108 @@ class MockWeatherRepository implements WeatherRepository {
     );
   }
 
-  /// Adjust temperature based on location
+  /// Adjust temperature based on location and seasonal variations
   double _adjustTemperatureForLocation(String location) {
     final locationLower = location.toLowerCase();
+    final currentMonth = DateTime.now().month;
     
-    // Simple location-based temperature adjustments
+    // Base temperature by location
+    double baseTemp;
     if (locationLower.contains('miami') || locationLower.contains('florida')) {
-      return 28.0; // Warmer
+      baseTemp = 28.0; // Warmer
     } else if (locationLower.contains('seattle') || locationLower.contains('washington')) {
-      return 15.0; // Cooler
+      baseTemp = 15.0; // Cooler
     } else if (locationLower.contains('phoenix') || locationLower.contains('arizona')) {
-      return 35.0; // Hot
+      baseTemp = 35.0; // Hot
     } else if (locationLower.contains('denver') || locationLower.contains('colorado')) {
-      return 18.0; // Mountain climate
+      baseTemp = 18.0; // Mountain climate
     } else if (locationLower.contains('chicago') || locationLower.contains('illinois')) {
-      return 12.0; // Continental climate
+      baseTemp = 12.0; // Continental climate
     } else if (locationLower.contains('los angeles') || locationLower.contains('california')) {
-      return 22.0; // Mediterranean climate
+      baseTemp = 22.0; // Mediterranean climate
+    } else {
+      baseTemp = 20.0; // Default moderate temperature
     }
     
-    return 20.0; // Default moderate temperature
+    // Apply seasonal adjustments based on current month
+    double seasonalOffset = _getSeasonalOffset(currentMonth, locationLower);
+    
+    return baseTemp + seasonalOffset;
+  }
+  
+  /// Get seasonal temperature offset based on month and location type
+  double _getSeasonalOffset(int month, String locationLower) {
+    // Determine if location is in Northern or Southern hemisphere
+    bool isNorthernHemisphere = !_isSouthernHemisphere(locationLower);
+    
+    // Define seasonal months (adjusted for hemisphere)
+    List<int> winterMonths, summerMonths;
+    if (isNorthernHemisphere) {
+      winterMonths = [12, 1, 2]; // Dec, Jan, Feb
+      summerMonths = [6, 7, 8];  // Jun, Jul, Aug
+    } else {
+      winterMonths = [6, 7, 8];  // Jun, Jul, Aug (Southern winter)
+      summerMonths = [12, 1, 2]; // Dec, Jan, Feb (Southern summer)
+    }
+    
+    // Apply seasonal adjustments
+    if (winterMonths.contains(month)) {
+      // Winter: cooler temperatures
+      if (locationLower.contains('phoenix') || locationLower.contains('arizona')) {
+        return -12.0; // Desert regions get much cooler in winter
+      } else if (locationLower.contains('miami') || locationLower.contains('florida')) {
+        return -8.0; // Subtropical regions moderate cooling
+      } else if (locationLower.contains('chicago') || locationLower.contains('denver')) {
+        return -15.0; // Continental/mountain climates get very cold
+      } else {
+        return -10.0; // General winter cooling
+      }
+    } else if (summerMonths.contains(month)) {
+      // Summer: warmer temperatures
+      if (locationLower.contains('phoenix') || locationLower.contains('arizona')) {
+        return 8.0; // Desert regions get much hotter
+      } else if (locationLower.contains('miami') || locationLower.contains('florida')) {
+        return 5.0; // Humid subtropical warming
+      } else if (locationLower.contains('seattle') || locationLower.contains('washington')) {
+        return 8.0; // Pacific Northwest gets warmer but not extremely hot
+      } else {
+        return 6.0; // General summer warming
+      }
+    } else if ([3, 4, 5].contains(month) || [9, 10, 11].contains(month)) {
+      // Spring/Fall: moderate adjustments (Northern hemisphere months)
+      if (isNorthernHemisphere) {
+        if ([3, 4, 5].contains(month)) {
+          return -2.0; // Spring: slightly cooler than base
+        } else {
+          return 2.0; // Fall: slightly warmer than base
+        }
+      } else {
+        // Reverse for Southern hemisphere
+        if ([3, 4, 5].contains(month)) {
+          return 2.0; // Fall in Southern hemisphere
+        } else {
+          return -2.0; // Spring in Southern hemisphere
+        }
+      }
+    }
+    
+    return 0.0; // No adjustment
+  }
+  
+  /// Determine if location is in Southern hemisphere
+  bool _isSouthernHemisphere(String locationLower) {
+    return locationLower.contains('sydney') ||
+           locationLower.contains('melbourne') ||
+           locationLower.contains('australia') ||
+           locationLower.contains('sydney') ||
+           locationLower.contains('cape town') ||
+           locationLower.contains('south africa') ||
+           locationLower.contains('rio de janeiro') ||
+           locationLower.contains('brazil') ||
+           locationLower.contains('buenos aires') ||
+           locationLower.contains('argentina') ||
+           locationLower.contains('lima') ||
+           locationLower.contains('peru');
   }
 
   /// Get random weather condition
