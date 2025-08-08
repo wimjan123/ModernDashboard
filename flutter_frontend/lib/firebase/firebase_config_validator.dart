@@ -39,6 +39,7 @@ class FirebaseConfigValidator {
     TargetPlatform.iOS: ['apiKey', 'appId', 'messagingSenderId', 'projectId', 'iosBundleId'],
     TargetPlatform.macOS: ['apiKey', 'appId', 'messagingSenderId', 'projectId', 'iosBundleId'],
     TargetPlatform.windows: ['apiKey', 'appId', 'messagingSenderId', 'projectId', 'authDomain'],
+    TargetPlatform.linux: ['apiKey', 'appId', 'messagingSenderId', 'projectId', 'authDomain'],
   };
 
   static const Map<TargetPlatform, List<String>> _webRequiredFields = {
@@ -85,6 +86,27 @@ class FirebaseConfigValidator {
            RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(apiKey);
   }
 
+  static bool isValidStorageBucket(String storageBucket) {
+    if (!isValidConfigValue(storageBucket)) return false;
+    
+    final regex = RegExp(r'^[a-z0-9][a-z0-9-_.]*[a-z0-9]\.appspot\.com$');
+    return regex.hasMatch(storageBucket) && storageBucket.length <= 222;
+  }
+
+  static bool isValidMeasurementId(String measurementId) {
+    if (!isValidConfigValue(measurementId)) return false;
+    
+    final regex = RegExp(r'^G-[A-Z0-9]{10}$');
+    return regex.hasMatch(measurementId);
+  }
+
+  static bool isValidDatabaseURL(String databaseURL) {
+    if (!isValidConfigValue(databaseURL)) return false;
+    
+    final regex = RegExp(r'^https://[a-z0-9-]+-default-rtdb\.(firebaseio\.com|asia-southeast1\.firebasedatabase\.app|europe-west1\.firebasedatabase\.app)/?$');
+    return regex.hasMatch(databaseURL);
+  }
+
   static String? extractProjectNumberFromAppId(String appId) {
     if (!isValidAppId(appId)) return null;
     
@@ -99,7 +121,7 @@ class FirebaseConfigValidator {
     if (kIsWeb) {
       return _webRequiredFields.containsKey(platform);
     }
-    return _requiredFields.containsKey(platform) || platform == TargetPlatform.linux;
+    return _requiredFields.containsKey(platform);
   }
 
   static List<String> getSupportedPlatforms() {
@@ -137,7 +159,7 @@ class FirebaseConfigValidator {
       requiredFields = _requiredFields[platform] ?? [];
     }
 
-    if (requiredFields.isEmpty && platform != TargetPlatform.linux) {
+    if (requiredFields.isEmpty) {
       errors.add('Platform ${platform.name} is not supported');
       return ValidationResult(
         isValid: false,
