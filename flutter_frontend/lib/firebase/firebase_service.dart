@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import '../firebase_options.dart';
 import '../core/exceptions/initialization_exception.dart';
+import '../core/models/initialization_status.dart';
+import '../core/services/backoff_strategy.dart';
 import 'firebase_config_validator.dart';
 
 class FirebaseService {
@@ -26,6 +29,11 @@ class FirebaseService {
   bool _isOfflineMode = false;
   StreamController<bool> _offlineModeController = StreamController<bool>.broadcast();
   StreamSubscription? _connectivitySubscription;
+  
+  // Progress tracking infrastructure
+  StreamController<InitializationStatus> _statusController = StreamController<InitializationStatus>.broadcast();
+  InitializationStatus? _currentStatus;
+  Completer<void>? _currentCancelToken;
 
   bool get isInitialized => _app != null;
   bool get isAnonymousAuthEnabled => _anonymousAuthEnabled;
@@ -36,6 +44,10 @@ class FirebaseService {
   // Offline mode getters
   bool get isOfflineMode => _isOfflineMode;
   Stream<bool> get offlineModeStream => _offlineModeController.stream;
+  
+  // Progress tracking getters
+  Stream<InitializationStatus> get initializationStatusStream => _statusController.stream;
+  InitializationStatus? getCurrentStatus() => _currentStatus;
 
   /// Check network connectivity before Firebase operations
   Future<bool> _checkNetworkConnectivity() async {
@@ -209,24 +221,84 @@ class FirebaseService {
   }
 
 
+  /// Emit status update and store current status
+  void _emitStatus(InitializationStatus status) {
+    _currentStatus = status;
+    _statusController.add(status);
+  }
+  
+  /// Create status object with common parameters
+  InitializationStatus _createStatus(
+    InitializationPhase phase,
+    String message, {
+    int? currentAttempt,
+    int? maxAttempts,
+    double? progress,
+    Duration? nextRetryIn,
+    bool isRetrying = false,
+    InitializationException? error,
+  }) {
+    return InitializationStatus(
+      phase: phase,
+      currentAttempt: currentAttempt ?? 1,
+      maxAttempts: maxAttempts ?? 3,
+      message: message,
+      progress: progress,
+      nextRetryIn: nextRetryIn,
+      isRetrying: isRetrying,
+      error: error,
+    );
+  }
+  
+  /// Check if operation should be cancelled
+  bool _shouldCancel() {
+    return _currentCancelToken?.isCompleted ?? false;
+  }
+  
   /// Initialize Firebase with default configuration
-  Future<void> initializeFirebase({bool enableAnonymousAuth = true}) async {
-    // Validate platform-specific configuration first
-    _validatePlatformSpecificConfig();
-    
-    // Validate Firebase configuration options
-    _validateFirebaseOptions(DefaultFirebaseOptions.currentPlatform);
-    
-    // Check network connectivity
-    if (!await _checkNetworkConnectivity()) {
-      _logger.e('No internet connection available');
-      throw const InitializationException(
-        'no-network',
-        'No internet connection available',
-      );
-    }
-
+  Future<void> initializeFirebase({
+    bool enableAnonymousAuth = true,
+    BackoffStrategy? backoffStrategy,
+  }) async {
     try {
+      // Network connectivity check
+      _emitStatus(_createStatus(
+        InitializationPhase.networkCheck,
+        'Checking network connectivity...',
+        progress: 0.1,
+      ));
+      
+      if (_shouldCancel()) return;
+      
+      if (!await _checkNetworkConnectivity()) {
+        _logger.e('No internet connection available');
+        throw const InitializationException(
+          'no-network',
+          'No internet connection available',
+        );
+      }
+      
+      // Configuration validation
+      _emitStatus(_createStatus(
+        InitializationPhase.configValidation,
+        'Validating Firebase configuration...',
+        progress: 0.2,
+      ));
+      
+      if (_shouldCancel()) return;
+      
+      _validatePlatformSpecificConfig();
+      _validateFirebaseOptions(DefaultFirebaseOptions.currentPlatform);
+
+      // Firebase initialization
+      _emitStatus(_createStatus(
+        InitializationPhase.firebaseInit,
+        'Initializing Firebase services...',
+        progress: 0.4,
+      ));
+      
+      if (_shouldCancel()) return;
+      
       _logger.i('Starting Firebase initialization');
       _anonymousAuthEnabled = enableAnonymousAuth;
       
@@ -248,6 +320,15 @@ class FirebaseService {
       _auth!.authStateChanges().listen((User? user) {
         _currentUser = user;
       });
+      
+      // Authentication phase
+      _emitStatus(_createStatus(
+        InitializationPhase.authentication,
+        'Setting up authentication...',
+        progress: 0.7,
+      ));
+      
+      if (_shouldCancel()) return;
 
       // Sign in anonymously if no user exists and auth is enabled
       if (_auth!.currentUser == null && enableAnonymousAuth) {
@@ -268,11 +349,34 @@ class FirebaseService {
         _anonymousAuthEnabled = false;
       }
       
+      // Repository initialization
+      _emitStatus(_createStatus(
+        InitializationPhase.repositoryInit,
+        'Initializing data repositories...',
+        progress: 0.9,
+      ));
+      
+      if (_shouldCancel()) return;
+      
       // Start connectivity monitoring and detect initial offline mode
       _startConnectivityMonitoring();
       await _detectOfflineMode();
       
+      // Success
+      _emitStatus(_createStatus(
+        InitializationPhase.success,
+        'Initialization completed successfully',
+        progress: 1.0,
+      ));
+      
       _logger.i('Firebase initialization completed successfully');
+    } on InitializationException catch (e) {
+      _emitStatus(_createStatus(
+        InitializationPhase.error,
+        'Initialization failed: ${e.message}',
+        error: e,
+      ));
+      rethrow;
     } on FirebaseException catch (e) {
       // Set offline mode for network-related Firebase errors
       final networkRelatedCodes = ['no-network', 'network-request-failed', 'unavailable'];
@@ -282,18 +386,30 @@ class FirebaseService {
         _logger.w('Firebase initialization failed due to network, offline mode activated: ${e.code}');
       }
       _logger.e('Firebase initialization failed', error: e, stackTrace: StackTrace.current);
-      throw InitializationException(
+      final initException = InitializationException(
         e.code,
         e.message ?? 'Unknown Firebase error',
         e.toString(),
       );
+      _emitStatus(_createStatus(
+        InitializationPhase.error,
+        'Firebase error: ${e.message ?? 'Unknown error'}',
+        error: initException,
+      ));
+      throw initException;
     } catch (e) {
       _logger.e('Unexpected error during Firebase initialization', error: e, stackTrace: StackTrace.current);
-      throw InitializationException(
+      final initException = InitializationException(
         'unknown-error',
         'Unexpected initialization error',
         e.toString(),
       );
+      _emitStatus(_createStatus(
+        InitializationPhase.error,
+        'Unexpected error occurred',
+        error: initException,
+      ));
+      throw initException;
     }
   }
 
@@ -347,40 +463,118 @@ class FirebaseService {
     return _currentUser?.isAnonymous ?? false;
   }
 
-  /// Retry Firebase initialization with exponential backoff
-  Future<void> retryInitialization({int maxRetries = 3, bool enableAnonymousAuth = true}) async {
-    int retryCount = 0;
-
-    while (retryCount < maxRetries) {
+  /// Cancel ongoing initialization
+  void cancelInitialization() {
+    if (_currentCancelToken != null && !_currentCancelToken!.isCompleted) {
+      _currentCancelToken!.complete();
+      _logger.i('Initialization cancelled by user');
+    }
+  }
+  
+  /// Retry Firebase initialization with configurable backoff strategy
+  Future<void> retryInitialization({
+    BackoffStrategy? backoffStrategy,
+    bool enableAnonymousAuth = true,
+  }) async {
+    final strategy = backoffStrategy ?? BackoffStrategy();
+    _currentCancelToken = Completer<void>();
+    
+    for (int attempt = 1; attempt <= strategy.maxAttempts; attempt++) {
       try {
-        _logger.i('Retry attempt ${retryCount + 1} of $maxRetries');
+        _logger.i('Retry attempt $attempt of ${strategy.maxAttempts}');
+        
+        // Update status for new attempt
+        _emitStatus(_createStatus(
+          InitializationPhase.retrying,
+          'Preparing to retry initialization...',
+          currentAttempt: attempt,
+          maxAttempts: strategy.maxAttempts,
+          isRetrying: true,
+        ));
+        
+        if (_shouldCancel()) {
+          _logger.i('Retry cancelled during attempt $attempt');
+          return;
+        }
+        
+        // If not the first attempt, apply backoff delay
+        if (attempt > 1) {
+          final delay = strategy.calculateDelay(attempt);
+          _logger.d('Waiting ${delay.inSeconds} seconds before retry attempt $attempt');
+          
+          // Countdown during delay
+          final startTime = DateTime.now();
+          while (!_shouldCancel()) {
+            final remaining = strategy.getRemainingDelay(attempt, startTime);
+            if (remaining <= Duration.zero) break;
+            
+            _emitStatus(_createStatus(
+              InitializationPhase.retrying,
+              'Retrying initialization...',
+              currentAttempt: attempt,
+              maxAttempts: strategy.maxAttempts,
+              nextRetryIn: remaining,
+              isRetrying: true,
+            ));
+            
+            await Future.delayed(const Duration(seconds: 1));
+          }
+          
+          if (_shouldCancel()) {
+            _logger.i('Retry cancelled during delay before attempt $attempt');
+            return;
+          }
+        }
+        
+        // Attempt initialization
         await initializeFirebase(enableAnonymousAuth: enableAnonymousAuth);
-        _logger.i('Firebase initialization retry successful');
+        _logger.i('Firebase initialization retry successful on attempt $attempt');
         return;
+        
       } on InitializationException catch (e) {
         // Skip retries for configuration validation errors that won't resolve with retries
         if (e.code == 'invalid-config' || e.code == 'unsupported-platform') {
           _logger.e('Skipping retries for configuration error: ${e.code}');
           rethrow;
         }
-        rethrow;
-      } catch (e) {
-        retryCount++;
-        _logger.w('Retry attempt $retryCount failed: $e');
         
-        if (retryCount >= maxRetries) {
-          _logger.e('All retry attempts exhausted');
-          throw InitializationException(
+        _logger.w('Retry attempt $attempt failed: ${e.message}');
+        
+        if (!strategy.shouldRetry(attempt + 1)) {
+          _logger.e('All retry attempts exhausted after $attempt attempts');
+          final finalException = InitializationException(
             'retry-failed',
-            'Failed to initialize Firebase after $maxRetries attempts',
+            'Failed to initialize Firebase after ${strategy.maxAttempts} attempts',
             e.toString(),
           );
+          _emitStatus(_createStatus(
+            InitializationPhase.error,
+            'Initialization failed after ${strategy.maxAttempts} attempts',
+            currentAttempt: attempt,
+            maxAttempts: strategy.maxAttempts,
+            error: finalException,
+          ));
+          throw finalException;
         }
-
-        // Exponential backoff: wait 2^retryCount seconds
-        final delay = Duration(seconds: (2 << retryCount));
-        _logger.d('Waiting ${delay.inSeconds} seconds before retry');
-        await Future.delayed(delay);
+      } catch (e) {
+        _logger.w('Retry attempt $attempt failed: $e');
+        
+        if (!strategy.shouldRetry(attempt + 1)) {
+          _logger.e('All retry attempts exhausted after $attempt attempts');
+          final finalException = InitializationException(
+            'retry-failed',
+            'Failed to initialize Firebase after ${strategy.maxAttempts} attempts',
+            e.toString(),
+          );
+          _emitStatus(_createStatus(
+            InitializationPhase.error,
+            'Initialization failed after ${strategy.maxAttempts} attempts',
+            currentAttempt: attempt,
+            maxAttempts: strategy.maxAttempts,
+            error: finalException,
+          ));
+          throw finalException;
+        }
       }
     }
   }
@@ -427,6 +621,10 @@ class FirebaseService {
   void dispose() {
     _stopConnectivityMonitoring();
     _offlineModeController.close();
+    _statusController.close();
+    if (_currentCancelToken != null && !_currentCancelToken!.isCompleted) {
+      _currentCancelToken!.complete();
+    }
     _logger.d('FirebaseService disposed');
   }
 }

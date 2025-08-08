@@ -1,128 +1,54 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/dark_theme.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/migration_screen.dart';
+import 'screens/initialization_progress_screen.dart';
 import 'firebase/firebase_service.dart';
 import 'firebase/migration_service.dart';
 import 'repositories/repository_provider.dart';
 import 'core/exceptions/initialization_exception.dart';
+import 'core/models/initialization_status.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase services
-  bool initialized = false;
-  bool needsMigration = false;
-  bool configValidationFailed = false;
-  bool offlineModeActive = false;
-  InitializationException? initError;
-  
-  try {
-    await FirebaseService.instance.initializeFirebase();
-    await RepositoryProvider.instance.initialize();
-    
-    // Check offline mode status
-    offlineModeActive = RepositoryProvider.instance.offlineModeActive;
-    
-    // Check if migration is needed (skip if offline mode)
-    if (!offlineModeActive) {
-      needsMigration = await MigrationService.instance.isMigrationNeeded();
-    } else {
-      needsMigration = false; // Skip migration in offline mode
-      debugPrint('Migration checks skipped in offline mode');
-    }
-    
-    initialized = true;
-  } catch (e) {
-    if (e is InitializationException) {
-      initError = e;
-      // Check if this is a configuration validation error
-      if (e.code == 'invalid-config' || e.code == 'unsupported-platform') {
-        configValidationFailed = true;
-      }
-    }
-    
-    // Skip retry for configuration errors since they won't resolve with retries
-    if (!configValidationFailed) {
-      // Try to retry initialization
-      try {
-        await FirebaseService.instance.retryInitialization();
-        await RepositoryProvider.instance.initialize();
-        
-        // Check offline mode status after retry
-        offlineModeActive = RepositoryProvider.instance.offlineModeActive;
-        
-        // Check migration after retry (skip if offline mode)
-        if (!offlineModeActive) {
-          needsMigration = await MigrationService.instance.isMigrationNeeded();
-        } else {
-          needsMigration = false;
-          debugPrint('Migration checks skipped in offline mode after retry');
-        }
-        
-        initialized = true;
-        initError = null; // Clear error on successful retry
-      } catch (retryError) {
-        debugPrint('Failed to initialize Firebase after retry: $retryError');
-        if (retryError is InitializationException) {
-          initError = retryError;
-        }
-        initialized = false;
-      }
-    } else {
-      // For config errors, try fallback initialization without anonymous auth
-      try {
-        await FirebaseService.instance.initializeFirebase(enableAnonymousAuth: false);
-        await RepositoryProvider.instance.initialize();
-        
-        // Check offline mode status after fallback
-        offlineModeActive = RepositoryProvider.instance.offlineModeActive;
-        
-        debugPrint('Firebase initialized in fallback mode without anonymous authentication');
-        initialized = true;
-        initError = null;
-      } catch (fallbackError) {
-        // Check if repositories initialized in offline mode as a final fallback
-        if (RepositoryProvider.instance.offlineModeActive) {
-          offlineModeActive = true;
-          initialized = true;
-          initError = null;
-          debugPrint('Using offline mode as final fallback after config error');
-        } else {
-          debugPrint('Fallback initialization also failed: $fallbackError');
-          initialized = false;
-        }
-      }
-    }
-  }
-
-  runApp(ModernDashboardApp(
-    initialized: initialized,
-    needsMigration: needsMigration,
-    initError: initError,
-    configValidationFailed: configValidationFailed,
-    offlineModeActive: offlineModeActive,
-  ));
+  runApp(const ModernDashboardApp(startInitialization: true));
 }
 
-class ModernDashboardApp extends StatelessWidget {
-  final bool initialized;
-  final bool needsMigration;
-  final InitializationException? initError;
-  final bool configValidationFailed;
-  final bool offlineModeActive;
+class ModernDashboardApp extends StatefulWidget {
+  final bool startInitialization;
   
   const ModernDashboardApp({
-    super.key, 
-    required this.initialized,
-    this.needsMigration = false,
-    this.initError,
-    this.configValidationFailed = false,
-    this.offlineModeActive = false,
+    super.key,
+    this.startInitialization = true,
   });
+  
+  @override
+  State<ModernDashboardApp> createState() => _ModernDashboardAppState();
+}
 
+class _ModernDashboardAppState extends State<ModernDashboardApp> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.startInitialization) {
+      _startInitialization();
+    }
+  }
+  
+  void _startInitialization() {
+    // Start Firebase initialization (non-blocking)
+    FirebaseService.instance.initializeFirebase().then((_) {
+      // Initialize repositories after Firebase
+      return RepositoryProvider.instance.initialize();
+    }).catchError((error) {
+      debugPrint('Initialization failed: $error');
+    });
+  }
+  
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -134,22 +60,71 @@ class ModernDashboardApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Modern Dashboard',
         theme: DarkThemeData.theme,
-        home: !initialized
-            ? InitializationErrorScreen(
-                error: initError,
-                configValidationFailed: configValidationFailed,
-                offlineModeActive: offlineModeActive,
-              )
-            : needsMigration
-                ? const MigrationScreen()
-                : const DashboardScreen(),
+        home: StreamBuilder<InitializationStatus>(
+          stream: FirebaseService.instance.initializationStatusStream,
+          builder: (context, snapshot) {
+            final status = snapshot.data;
+            
+            if (status == null || status.isInProgress) {
+              return InitializationProgressScreen(
+                status: status,
+                onCancel: () {
+                  FirebaseService.instance.cancelInitialization();
+                },
+                onSkipToOffline: () async {
+                  await RepositoryProvider.instance.switchToOfflineMode();
+                },
+              );
+            }
+            
+            if (status.phase == InitializationPhase.error) {
+              return InitializationErrorScreen(
+                error: status.error,
+                configValidationFailed: status.error?.code == 'invalid-config' ||
+                    status.error?.code == 'unsupported-platform',
+                offlineModeActive: RepositoryProvider.instance.offlineModeActive,
+              );
+            }
+            
+            // Check for migration needs
+            return FutureBuilder<bool>(
+              future: _checkMigrationNeeded(),
+              builder: (context, migrationSnapshot) {
+                if (migrationSnapshot.connectionState == ConnectionState.waiting) {
+                  return const InitializationProgressScreen(
+                    status: null, // Will show default loading
+                  );
+                }
+                
+                if (migrationSnapshot.data == true) {
+                  return const MigrationScreen();
+                }
+                
+                return const DashboardScreen();
+              },
+            );
+          },
+        ),
         debugShowCheckedModeBanner: false,
       ),
     );
   }
+  
+  Future<bool> _checkMigrationNeeded() async {
+    try {
+      // Skip migration check if in offline mode
+      if (RepositoryProvider.instance.offlineModeActive) {
+        return false;
+      }
+      return await MigrationService.instance.isMigrationNeeded();
+    } catch (e) {
+      debugPrint('Migration check failed: $e');
+      return false;
+    }
+  }
 }
 
-class InitializationErrorScreen extends StatelessWidget {
+class InitializationErrorScreen extends StatefulWidget {
   final InitializationException? error;
   final bool configValidationFailed;
   final bool offlineModeActive;
@@ -160,6 +135,100 @@ class InitializationErrorScreen extends StatelessWidget {
     this.configValidationFailed = false,
     this.offlineModeActive = false,
   });
+  
+  @override
+  State<InitializationErrorScreen> createState() => _InitializationErrorScreenState();
+}
+
+class _InitializationErrorScreenState extends State<InitializationErrorScreen> {
+  bool _isRetrying = false;
+  bool _isSwitchingToOffline = false;
+  StreamSubscription<InitializationStatus>? _statusSubscription;
+
+  @override
+  void dispose() {
+    _statusSubscription?.cancel();
+    super.dispose();
+  }
+  
+  void _handleRetry() async {
+    if (_isRetrying) return;
+    
+    setState(() {
+      _isRetrying = true;
+    });
+    
+    try {
+      // Listen to retry progress
+      _statusSubscription = FirebaseService.instance.initializationStatusStream.listen(
+        (status) {
+          if (status.phase == InitializationPhase.success) {
+            // Navigate to dashboard on success
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => const DashboardScreen(),
+                ),
+              );
+            }
+          } else if (status.phase == InitializationPhase.error) {
+            // Error will be handled by the parent StreamBuilder
+            setState(() {
+              _isRetrying = false;
+            });
+          }
+        },
+      );
+      
+      // Start retry process
+      await FirebaseService.instance.retryInitialization();
+      await RepositoryProvider.instance.initialize();
+      
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isRetrying = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Retry failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  void _handleSkipToOffline() async {
+    if (_isSwitchingToOffline) return;
+    
+    setState(() {
+      _isSwitchingToOffline = true;
+    });
+    
+    try {
+      await RepositoryProvider.instance.switchToOfflineMode();
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const DashboardScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSwitchingToOffline = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to switch to offline mode: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,15 +239,15 @@ class InitializationErrorScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              offlineModeActive ? Icons.cloud_off : Icons.error_outline,
-              color: offlineModeActive ? Colors.amber : Colors.red,
+              widget.offlineModeActive ? Icons.cloud_off : Icons.error_outline,
+              color: widget.offlineModeActive ? Colors.amber : Colors.red,
               size: 64,
             ),
             const SizedBox(height: 16),
             Text(
-              offlineModeActive
+              widget.offlineModeActive
                 ? 'Running in Offline Mode'
-                : configValidationFailed 
+                : widget.configValidationFailed 
                   ? 'Firebase Configuration Error'
                   : 'Failed to Initialize Firebase',
               style: const TextStyle(
@@ -189,9 +258,9 @@ class InitializationErrorScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              offlineModeActive
+              widget.offlineModeActive
                 ? 'Limited functionality available.\nTodo, Weather, and News features work offline.\nTry reconnecting when network is available.'
-                : configValidationFailed
+                : widget.configValidationFailed
                   ? 'Please check your Firebase configuration files\nand ensure all values are properly set.'
                   : 'Please check your Firebase configuration\nand try restarting the app.',
               textAlign: TextAlign.center,
@@ -200,7 +269,7 @@ class InitializationErrorScreen extends StatelessWidget {
                 fontSize: 16,
               ),
             ),
-            if (error != null) ...[
+            if (widget.error != null) ...[
               const SizedBox(height: 16),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 32),
@@ -214,7 +283,7 @@ class InitializationErrorScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Error Code: ${error!.code}',
+                      'Error Code: ${widget.error!.code}',
                       style: const TextStyle(
                         color: Colors.redAccent,
                         fontSize: 14,
@@ -224,23 +293,23 @@ class InitializationErrorScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      error!.message,
+                      widget.error!.message,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
                       ),
                     ),
-                    if (error!.details != null) ...[
+                    if (widget.error!.details != null) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Details: ${error!.details}',
+                        'Details: ${widget.error!.details}',
                         style: const TextStyle(
                           color: Colors.white60,
                           fontSize: 12,
                         ),
                       ),
                     ],
-                    if (error!.code == 'no-network') ...[
+                    if (widget.error!.code == 'no-network') ...[
                       const SizedBox(height: 12),
                       const Text(
                         '💡 Check your internet connection and try again',
@@ -249,7 +318,7 @@ class InitializationErrorScreen extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
-                    ] else if (error!.code == 'operation-not-allowed') ...[
+                    ] else if (widget.error!.code == 'operation-not-allowed') ...[
                       const SizedBox(height: 12),
                       const Text(
                         '💡 Authentication method may not be enabled in Firebase Console',
@@ -258,7 +327,7 @@ class InitializationErrorScreen extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
-                    ] else if (error!.code == 'invalid-config') ...[
+                    ] else if (widget.error!.code == 'invalid-config') ...[
                       const SizedBox(height: 12),
                       const Text(
                         '💡 Check firebase_options.dart for placeholder or invalid values',
@@ -267,7 +336,7 @@ class InitializationErrorScreen extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
-                    ] else if (error!.code == 'unsupported-platform') ...[
+                    ] else if (widget.error!.code == 'unsupported-platform') ...[
                       const SizedBox(height: 12),
                       const Text(
                         '💡 Run FlutterFire CLI to configure this platform',
@@ -281,7 +350,7 @@ class InitializationErrorScreen extends StatelessWidget {
                 ),
               ),
             ],
-            if (configValidationFailed) ...[
+            if (widget.configValidationFailed) ...[
               const SizedBox(height: 16),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 32),
@@ -332,7 +401,7 @@ class InitializationErrorScreen extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 24),
-            if (offlineModeActive)
+            if (widget.offlineModeActive)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -385,52 +454,45 @@ class InitializationErrorScreen extends StatelessWidget {
                   ),
                 ],
               )
-            else if (!configValidationFailed)
+            else if (!widget.configValidationFailed) ...[              
               ElevatedButton(
-              onPressed: () async {
-                // Try to reinitialize
-                try {
-                  await FirebaseService.instance.retryInitialization();
-                  await RepositoryProvider.instance.reset();
-                  
-                  // Restart app (this is a simple approach)
-                  if (context.mounted) {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => const DashboardScreen(),
-                      ),
-                    );
-                  }
-                } on InitializationException catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Retry failed: ${e.message}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Retry failed: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+                onPressed: _isRetrying ? null : _handleRetry,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+                child: _isRetrying
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Retry'),
               ),
-              child: const Text('Retry'),
-            )
-            else
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _isSwitchingToOffline ? null : _handleSkipToOffline,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: _isSwitchingToOffline
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Skip to Offline Mode'),
+              ),
+            ] else ...[              
               ElevatedButton(
                 onPressed: () {
-                  // For config errors, provide guidance instead of retry
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -463,6 +525,7 @@ class InitializationErrorScreen extends StatelessWidget {
                 ),
                 child: const Text('Configuration Help'),
               ),
+            ],
           ],
         ),
       ),
