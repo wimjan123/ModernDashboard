@@ -14,15 +14,7 @@
       },
       "oauth_client": [
         {
-          "client_id": "965908404542-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.modern_dashboard",
-            "certificate_hash": "SHA1:1A:2B:3C:4D:5E:6F:7A:8B:9C:0D:1E:2F:3A:4B:5C:6D:7E:8F:9A:0B"
-          }
-        },
-        {
-          "client_id": "965908404542-zyxwvutsrqponmlkjihgfedcba654321.apps.googleusercontent.com",
+          "client_id": "965908404542-abcd1234efgh5678ijkl9012mnop3456.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -35,7 +27,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "965908404542-zyxwvutsrqponmlkjihgfedcba654321.apps.googleusercontent.com",
+              "client_id": "965908404542-abcd1234efgh5678ijkl9012mnop3456.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

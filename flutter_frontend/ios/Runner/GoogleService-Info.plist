@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyA93Y6ChDQMbVserp7PEbmdZXO6mphppt4</string>
+	<string>AIzaSyD9L0nO3pQ6rS8tU2vW4xY1zA3bCd7eF9</string>
 	<key>GCM_SENDER_ID</key>
 	<string>965908404542</string>
 	<key>PLIST_VERSION</key>
@@ -19,12 +19,12 @@
 	<key>IS_ANALYTICS_ENABLED</key>
 	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:965908404542:ios:3a9ef7337e18c0f152f46f</string>
+	<string>1:965908404542:ios:9g8f7e6d5c4b3a291827e5f</string>
 </dict>
 </plist>

@@ -1,1 +1,18 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"moderndashboard-68352","configurations":{"macos":"1:965908404542:ios:3a9ef7337e18c0f152f46f","web":"1:965908404542:web:126887b90ad4df7452f46f"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "moderndashboard-68352",
+          "configurations": {
+            "ios": "1:965908404542:ios:9g8f7e6d5c4b3a291827e5f",
+            "android": "1:965908404542:android:8f7e6d5c4b3a29182736f4e",
+            "macos": "1:965908404542:ios:3a9ef7337e18c0f152f46f",
+            "web": "1:965908404542:web:126887b90ad4df7452f46f",
+            "windows": "1:965908404542:web:0h9g8f7e6d5c4b3a2918f6g"
+          }
+        }
+      }
+    }
+  }
+}
