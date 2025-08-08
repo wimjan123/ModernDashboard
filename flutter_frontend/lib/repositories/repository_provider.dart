@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../firebase/firebase_service.dart';
@@ -7,6 +8,9 @@ import 'news_repository.dart';
 import 'firestore_todo_repository.dart';
 import 'cloud_weather_repository.dart';
 import 'cloud_news_repository.dart';
+import 'mock_todo_repository.dart';
+import 'mock_weather_repository.dart';
+import 'mock_news_repository.dart';
 
 /// Repository provider managing Firebase-based data services
 /// Provides centralized access to all repositories with proper initialization
@@ -23,8 +27,13 @@ class RepositoryProvider extends ChangeNotifier {
   bool _isInitialized = false;
   bool _authenticationRequired = false;
   
+  // Offline mode state management
+  bool _offlineModeActive = false;
+  StreamSubscription<bool>? _offlineModeSubscription;
+  
   bool get isInitialized => _isInitialized;
   bool get requiresAuthentication => _authenticationRequired;
+  bool get offlineModeActive => _offlineModeActive;
 
   /// Environment variables and feature flags
   static const bool _useCloudFunctions = 
@@ -32,29 +41,62 @@ class RepositoryProvider extends ChangeNotifier {
   static const bool _enableOfflineMode = 
       bool.fromEnvironment('ENABLE_OFFLINE_MODE', defaultValue: true);
 
-  /// Initialize all repositories with Firebase implementations
+  /// Initialize all repositories with Firebase or mock implementations based on availability
   Future<void> initialize() async {
     try {
-      // Ensure Firebase is initialized first
-      if (!FirebaseService.instance.isInitialized) {
-        throw Exception('Firebase service must be initialized first');
-      }
-      
-      // Check authentication status and log warning if needed
-      if (FirebaseService.instance.isInitialized && !FirebaseService.instance.isAuthenticated()) {
-        debugPrint('RepositoryProvider: Firebase initialized but user not authenticated. Some repositories may have limited functionality.');
-      }
+      // Subscribe to Firebase offline mode changes
+      _offlineModeSubscription = FirebaseService.instance.offlineModeStream.listen((isOffline) {
+        final wasOffline = _offlineModeActive;
+        _offlineModeActive = isOffline;
+        
+        if (wasOffline != _offlineModeActive) {
+          debugPrint('RepositoryProvider: Offline mode changed to $_offlineModeActive');
+          notifyListeners();
+        }
+      });
 
-      // Initialize all repositories with Firebase implementations
-      await _initializeTodoRepository();
-      await _initializeWeatherRepository();
-      await _initializeNewsRepository();
+      // Check if Firebase is initialized and offline mode
+      final firebaseInitialized = FirebaseService.instance.isInitialized;
+      final currentlyOffline = FirebaseService.instance.isOfflineMode;
+      
+      if (!firebaseInitialized || (currentlyOffline && _enableOfflineMode)) {
+        // Initialize offline repositories
+        _offlineModeActive = true;
+        await _initializeOfflineRepositories();
+        debugPrint('RepositoryProvider: All repositories initialized in offline mode');
+      } else {
+        // Initialize Firebase repositories
+        _offlineModeActive = false;
+        
+        // Check authentication status and log warning if needed
+        if (!FirebaseService.instance.isAuthenticated()) {
+          debugPrint('RepositoryProvider: Firebase initialized but user not authenticated. Some repositories may have limited functionality.');
+        }
+
+        // Initialize all repositories with Firebase implementations
+        await _initializeTodoRepository();
+        await _initializeWeatherRepository();
+        await _initializeNewsRepository();
+        debugPrint('RepositoryProvider: All repositories initialized with Firebase');
+      }
 
       _isInitialized = true;
       notifyListeners();
-      
-      debugPrint('RepositoryProvider: All repositories initialized with Firebase');
     } catch (e) {
+      // Try offline mode as fallback if enabled
+      if (_enableOfflineMode && !_offlineModeActive) {
+        try {
+          debugPrint('RepositoryProvider: Attempting offline mode as fallback');
+          _offlineModeActive = true;
+          await _initializeOfflineRepositories();
+          _isInitialized = true;
+          notifyListeners();
+          debugPrint('RepositoryProvider: Successfully initialized in offline mode as fallback');
+          return;
+        } catch (offlineError) {
+          debugPrint('RepositoryProvider: Offline fallback also failed: $offlineError');
+        }
+      }
       throw Exception('Failed to initialize repositories: $e');
     }
   }
@@ -63,9 +105,11 @@ class RepositoryProvider extends ChangeNotifier {
   TodoRepository get todoRepository {
     if (_todoRepository == null) {
       if (_authenticationRequired && !FirebaseService.instance.isAuthenticated()) {
-        throw Exception('Repository requires user authentication. Please enable anonymous authentication or sign in.');
+        final modeInfo = _offlineModeActive ? ' (offline mode available)' : '';
+        throw Exception('Repository requires user authentication. Please enable anonymous authentication or sign in.$modeInfo');
       }
-      throw Exception('TodoRepository not initialized. Call initialize() first.');
+      final modeInfo = _offlineModeActive ? ' App is in offline mode.' : '';
+      throw Exception('TodoRepository not initialized. Call initialize() first.$modeInfo');
     }
     return _todoRepository!;
   }
@@ -142,11 +186,116 @@ class RepositoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Initialize all repositories with offline/mock implementations
+  Future<void> _initializeOfflineRepositories() async {
+    try {
+      await _initializeOfflineTodoRepository();
+      await _initializeOfflineWeatherRepository();
+      await _initializeOfflineNewsRepository();
+      debugPrint('RepositoryProvider: All offline repositories initialized successfully');
+    } catch (e) {
+      throw Exception('Failed to initialize offline repositories: $e');
+    }
+  }
+
+  /// Initialize todo repository with mock implementation
+  Future<void> _initializeOfflineTodoRepository() async {
+    try {
+      debugPrint('RepositoryProvider: Using mock todo repository for offline mode');
+      _todoRepository = MockTodoRepository();
+      _authenticationRequired = false; // Mock repositories don't require auth
+    } catch (e) {
+      throw Exception('Failed to initialize mock todo repository: $e');
+    }
+  }
+
+  /// Initialize weather repository with mock implementation
+  Future<void> _initializeOfflineWeatherRepository() async {
+    try {
+      debugPrint('RepositoryProvider: Using mock weather repository for offline mode');
+      _weatherRepository = MockWeatherRepository();
+    } catch (e) {
+      throw Exception('Failed to initialize mock weather repository: $e');
+    }
+  }
+
+  /// Initialize news repository with mock implementation
+  Future<void> _initializeOfflineNewsRepository() async {
+    try {
+      debugPrint('RepositoryProvider: Using mock news repository for offline mode');
+      _newsRepository = MockNewsRepository();
+    } catch (e) {
+      throw Exception('Failed to initialize mock news repository: $e');
+    }
+  }
+
   /// Check if all repositories are using Firebase implementations
   bool get isUsingFirebase => 
       _todoRepository is FirestoreTodoRepository &&
       _weatherRepository is CloudWeatherRepository &&
       _newsRepository is CloudNewsRepository;
+
+  /// Check if all repositories are using mock implementations (offline mode)
+  bool get isUsingMockRepositories =>
+      _todoRepository is MockTodoRepository &&
+      _weatherRepository is MockWeatherRepository &&
+      _newsRepository is MockNewsRepository;
+
+  /// Switch to offline mode manually
+  Future<void> switchToOfflineMode() async {
+    if (_offlineModeActive) {
+      debugPrint('RepositoryProvider: Already in offline mode');
+      return;
+    }
+
+    try {
+      debugPrint('RepositoryProvider: Switching to offline mode');
+      _offlineModeActive = true;
+      await _initializeOfflineRepositories();
+      notifyListeners();
+      debugPrint('RepositoryProvider: Successfully switched to offline mode');
+    } catch (e) {
+      debugPrint('RepositoryProvider: Failed to switch to offline mode: $e');
+      throw Exception('Failed to switch to offline mode: $e');
+    }
+  }
+
+  /// Switch to online mode (attempt reconnection)
+  Future<void> switchToOnlineMode() async {
+    if (!_offlineModeActive) {
+      debugPrint('RepositoryProvider: Already in online mode');
+      return;
+    }
+
+    try {
+      debugPrint('RepositoryProvider: Switching to online mode');
+      await reset();
+      await initialize();
+      debugPrint('RepositoryProvider: Successfully switched to online mode');
+    } catch (e) {
+      debugPrint('RepositoryProvider: Failed to switch to online mode, staying in offline mode: $e');
+      // Don't throw error, just log it - offline mode is a valid fallback
+    }
+  }
+
+  /// Get information about offline mode status and available features
+  Map<String, dynamic> getOfflineModeInfo() {
+    return {
+      'offline_mode_active': _offlineModeActive,
+      'offline_mode_enabled': _enableOfflineMode,
+      'available_features': _offlineModeActive ? [
+        'Todo management with local storage',
+        'Weather data with realistic mock data',
+        'News feeds with sample articles',
+        'Dashboard functionality',
+      ] : [],
+      'limitations': _offlineModeActive ? [
+        'No real-time data synchronization',
+        'Limited to sample/cached data',
+        'No cloud backup or sync',
+      ] : [],
+    };
+  }
 
   /// Get list of repositories that are unavailable due to authentication requirements
   List<String> getUnavailableRepositories() {
@@ -166,21 +315,26 @@ class RepositoryProvider extends ChangeNotifier {
       'weather': _weatherRepository?.runtimeType.toString() ?? 'Not initialized',
       'news': _newsRepository?.runtimeType.toString() ?? 'Not initialized',
       'cloud_functions': _useCloudFunctions.toString(),
-      'offline_mode': _enableOfflineMode.toString(),
+      'offline_mode_enabled': _enableOfflineMode.toString(),
+      'offline_mode_active': _offlineModeActive.toString(),
       'firebase_initialized': FirebaseService.instance.isInitialized.toString(),
       'user_authenticated': FirebaseService.instance.isAuthenticated().toString(),
       'auth_required': _authenticationRequired.toString(),
       'anonymous_auth_enabled': FirebaseService.instance.isAnonymousAuthEnabled.toString(),
+      'repository_type': isUsingFirebase ? 'Firebase' : (isUsingMockRepositories ? 'Mock (Offline)' : 'Mixed'),
     };
   }
 
   /// Clean up resources
   @override
   Future<void> dispose() async {
+    _offlineModeSubscription?.cancel();
+    _offlineModeSubscription = null;
     _todoRepository = null;
     _weatherRepository = null;
     _newsRepository = null;
     _isInitialized = false;
+    _offlineModeActive = false;
     super.dispose();
   }
 
@@ -202,10 +356,17 @@ class RepositoryProvider extends ChangeNotifier {
       health['auth_available'] = FirebaseService.instance.isAuthenticated();
       health['auth_required'] = _authenticationRequired;
       
+      // Check offline mode status
+      health['offline_mode'] = _offlineModeActive;
+      health['offline_mode_enabled'] = _enableOfflineMode;
+      
       // Check if repositories are initialized and available
       health['todo_repo'] = _todoRepository != null && (!_authenticationRequired || FirebaseService.instance.isAuthenticated());
       health['weather_repo'] = _weatherRepository != null;
       health['news_repo'] = _newsRepository != null;
+      
+      // Overall health status
+      health['repositories_available'] = health['todo_repo']! && health['weather_repo']! && health['news_repo']!;
       
     } catch (e) {
       debugPrint('Repository health check failed: $e');
