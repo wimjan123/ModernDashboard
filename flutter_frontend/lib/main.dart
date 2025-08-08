@@ -6,6 +6,7 @@ import 'screens/migration_screen.dart';
 import 'firebase/firebase_service.dart';
 import 'firebase/migration_service.dart';
 import 'repositories/repository_provider.dart';
+import 'core/exceptions/initialization_exception.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,7 @@ Future<void> main() async {
   // Initialize Firebase services
   bool initialized = false;
   bool needsMigration = false;
+  InitializationException? initError;
   
   try {
     await FirebaseService.instance.initializeFirebase();
@@ -23,6 +25,10 @@ Future<void> main() async {
     
     initialized = true;
   } catch (e) {
+    if (e is InitializationException) {
+      initError = e;
+    }
+    
     // Try to retry initialization
     try {
       await FirebaseService.instance.retryInitialization();
@@ -32,8 +38,12 @@ Future<void> main() async {
       needsMigration = await MigrationService.instance.isMigrationNeeded();
       
       initialized = true;
+      initError = null; // Clear error on successful retry
     } catch (retryError) {
       debugPrint('Failed to initialize Firebase after retry: $retryError');
+      if (retryError is InitializationException) {
+        initError = retryError;
+      }
       initialized = false;
     }
   }
@@ -41,17 +51,20 @@ Future<void> main() async {
   runApp(ModernDashboardApp(
     initialized: initialized,
     needsMigration: needsMigration,
+    initError: initError,
   ));
 }
 
 class ModernDashboardApp extends StatelessWidget {
   final bool initialized;
   final bool needsMigration;
+  final InitializationException? initError;
   
   const ModernDashboardApp({
     super.key, 
     required this.initialized,
     this.needsMigration = false,
+    this.initError,
   });
 
   @override
@@ -66,7 +79,7 @@ class ModernDashboardApp extends StatelessWidget {
         title: 'Modern Dashboard',
         theme: DarkThemeData.theme,
         home: !initialized
-            ? const InitializationErrorScreen()
+            ? InitializationErrorScreen(error: initError)
             : needsMigration
                 ? const MigrationScreen()
                 : const DashboardScreen(),
@@ -77,7 +90,9 @@ class ModernDashboardApp extends StatelessWidget {
 }
 
 class InitializationErrorScreen extends StatelessWidget {
-  const InitializationErrorScreen({super.key});
+  final InitializationException? error;
+  
+  const InitializationErrorScreen({super.key, this.error});
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +125,69 @@ class InitializationErrorScreen extends StatelessWidget {
                 fontSize: 16,
               ),
             ),
+            if (error != null) ..[
+              const SizedBox(height: 16),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Error Code: ${error!.code}',
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 14,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      error!.message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (error!.details != null) ..[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Details: ${error!.details}',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (error!.code == 'no-network') ..[
+                      const SizedBox(height: 12),
+                      const Text(
+                        '💡 Check your internet connection and try again',
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ] else if (error!.code == 'operation-not-allowed') ..[
+                      const SizedBox(height: 12),
+                      const Text(
+                        '💡 Authentication method may not be enabled in Firebase Console',
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
@@ -123,6 +201,15 @@ class InitializationErrorScreen extends StatelessWidget {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
                         builder: (context) => const DashboardScreen(),
+                      ),
+                    );
+                  }
+                } on InitializationException catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Retry failed: ${e.message}'),
+                        backgroundColor: Colors.red,
                       ),
                     );
                   }
