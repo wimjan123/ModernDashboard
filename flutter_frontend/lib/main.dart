@@ -18,7 +18,16 @@ import 'core/models/initialization_status.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(const ModernDashboardApp(startInitialization: true));
+  // Check if we're using mock data (for development/testing)
+  const bool useMockData = bool.fromEnvironment('USE_MOCK_DATA', defaultValue: false);
+  
+  if (useMockData || kIsWeb) {
+    // For web or mock data, skip Firebase initialization and go straight to offline mode
+    await RepositoryProvider.instance.switchToOfflineMode();
+    runApp(const ModernDashboardApp(startInitialization: false));
+  } else {
+    runApp(const ModernDashboardApp(startInitialization: true));
+  }
 }
 
 class ModernDashboardApp extends StatefulWidget {
@@ -63,63 +72,65 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
       child: MaterialApp(
         title: 'Modern Dashboard',
         theme: DarkThemeData.theme,
-        home: StreamBuilder<InitializationStatus>(
-          stream: FirebaseService.instance.initializationStatusStream,
-          builder: (context, snapshot) {
-            final status = snapshot.data;
-            
-            
-            if (status == null || status.isInProgress) {
-              return InitializationProgressScreen(
-                status: status,
-                onCancel: () {
-                  FirebaseService.instance.cancelInitialization();
-                },
-                onSkipToOffline: () async {
-                  await RepositoryProvider.instance.switchToOfflineMode();
-                },
-              );
-            }
-            
-            if (status.phase == InitializationPhase.error) {
-              return InitializationErrorScreen(
-                error: status.error,
-                configValidationFailed: status.error?.code == 'invalid-config' ||
-                    status.error?.code == 'unsupported-platform',
-                offlineModeActive: RepositoryProvider.instance.offlineModeActive,
-              );
-            }
-            
-            // Check authentication and migration needs
-            return StreamBuilder<User?>(
-              stream: AuthService.instance.authStateChanges,
-              builder: (context, authSnapshot) {
-                // Check if authentication flow is needed
-                if (_shouldShowLoginScreen()) {
-                  return const LoginScreen();
+        home: widget.startInitialization 
+          ? StreamBuilder<InitializationStatus>(
+              stream: FirebaseService.instance.initializationStatusStream,
+              builder: (context, snapshot) {
+                final status = snapshot.data;
+                
+                
+                if (status == null || status.isInProgress) {
+                  return InitializationProgressScreen(
+                    status: status,
+                    onCancel: () {
+                      FirebaseService.instance.cancelInitialization();
+                    },
+                    onSkipToOffline: () async {
+                      await RepositoryProvider.instance.switchToOfflineMode();
+                    },
+                  );
+                }
+
+                if (status.phase == InitializationPhase.error) {
+                  return InitializationErrorScreen(
+                    error: status.error,
+                    configValidationFailed: status.error?.code == 'invalid-config' ||
+                        status.error?.code == 'unsupported-platform',
+                    offlineModeActive: RepositoryProvider.instance.offlineModeActive,
+                  );
                 }
                 
-                // Check for migration needs after authentication
-                return FutureBuilder<bool>(
-                  future: _checkMigrationNeeded(),
-                  builder: (context, migrationSnapshot) {
-                    if (migrationSnapshot.connectionState == ConnectionState.waiting) {
-                      return const InitializationProgressScreen(
-                        status: null, // Will show default loading
-                      );
+                // Check authentication and migration needs
+                return StreamBuilder<User?>(
+                  stream: AuthService.instance.authStateChanges,
+                  builder: (context, authSnapshot) {
+                    // Check if authentication flow is needed
+                    if (_shouldShowLoginScreen()) {
+                      return const LoginScreen();
                     }
                     
-                    if (migrationSnapshot.data == true) {
-                      return const MigrationScreen();
-                    }
-                    
-                    return const DashboardScreen();
+                    // Check for migration needs after authentication
+                    return FutureBuilder<bool>(
+                      future: _checkMigrationNeeded(),
+                      builder: (context, migrationSnapshot) {
+                        if (migrationSnapshot.connectionState == ConnectionState.waiting) {
+                          return const InitializationProgressScreen(
+                            status: null, // Will show default loading
+                          );
+                        }
+                        
+                        if (migrationSnapshot.data == true) {
+                          return const MigrationScreen();
+                        }
+                        
+                        return const DashboardScreen();
+                      },
+                    );
                   },
                 );
               },
-            );
-          },
-        ),
+            )
+          : const DashboardScreen(), // Skip initialization, go straight to dashboard
         debugShowCheckedModeBanner: false,
       ),
     );
