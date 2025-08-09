@@ -21,11 +21,12 @@ Future<void> main() async {
   // Check if we're using mock data (for development/testing)
   const bool useMockData = bool.fromEnvironment('USE_MOCK_DATA', defaultValue: false);
   
-  if (useMockData || kIsWeb) {
-    // For web or mock data, skip Firebase initialization and go straight to offline mode
+  if (useMockData) {
+    // For mock data, skip Firebase initialization and go straight to offline mode
     await RepositoryProvider.instance.switchToOfflineMode();
     runApp(const ModernDashboardApp(startInitialization: false));
   } else {
+    // Initialize Firebase for both web and native platforms
     runApp(const ModernDashboardApp(startInitialization: true));
   }
 }
