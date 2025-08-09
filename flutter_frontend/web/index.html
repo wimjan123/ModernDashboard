@@ -35,7 +35,7 @@
 
   <script>
     // The value below is injected by flutter build, do not touch.
-    const serviceWorkerVersion = null;
+    const serviceWorkerVersion = "{{flutter_service_worker_version}}";
   </script>
   <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>
@@ -48,14 +48,9 @@
       window.firebase_auth = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js");
       window.firebase_firestore = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
       
-      _flutter.loader.loadEntrypoint({
+      _flutter.loader.load({
         serviceWorker: {
           serviceWorkerVersion: serviceWorkerVersion,
-        },
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            appRunner.runApp();
-          });
         }
       });
     });
