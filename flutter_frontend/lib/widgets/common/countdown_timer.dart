@@ -14,6 +14,7 @@ class CountdownTimer extends StatefulWidget {
   final Color? progressColor;
   final Color? backgroundColor;
   final bool showCircularProgress;
+  final bool showProgressText;
   final bool showCancelButton;
   final VoidCallback? onCancel;
 
@@ -29,6 +30,7 @@ class CountdownTimer extends StatefulWidget {
     this.progressColor,
     this.backgroundColor,
     this.showCircularProgress = true,
+    this.showProgressText = false,
     this.showCancelButton = false,
     this.onCancel,
   });

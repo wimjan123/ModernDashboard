@@ -6,12 +6,14 @@ class InitializationProgressScreen extends StatefulWidget {
   final InitializationStatus? status;
   final VoidCallback? onCancel;
   final VoidCallback? onSkipToOffline;
+  final bool showOfflineOption;
 
   const InitializationProgressScreen({
     super.key,
     this.status,
     this.onCancel,
     this.onSkipToOffline,
+    this.showOfflineOption = false,
   });
 
   @override
@@ -238,7 +240,7 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (widget.onSkipToOffline != null) ...[
+                if (widget.onSkipToOffline != null && (widget.showOfflineOption || isRetrying)) ...[
                   ElevatedButton(
                     onPressed: widget.onSkipToOffline,
                     style: ElevatedButton.styleFrom(
