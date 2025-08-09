@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../firebase/firebase_service.dart';
+import '../models/weather.dart';
 import 'weather_repository.dart';
 
 class CloudWeatherRepository implements WeatherRepository {
@@ -299,8 +300,8 @@ class CloudWeatherRepository implements WeatherRepository {
     }
   }
 
-  /// Get user's default location
-  Future<String?> getDefaultLocation() async {
+  /// Get user's default location (legacy method)
+  Future<String?> _getDefaultLocationString() async {
     try {
       final doc = await _userPreferencesDoc.get();
       if (!doc.exists) return null;
@@ -310,5 +311,109 @@ class CloudWeatherRepository implements WeatherRepository {
     } catch (e) {
       return null;
     }
+  }
+
+  // New interface methods
+  @override
+  Future<WeatherApiConfig> getConfig() async {
+    try {
+      final doc = await _userPreferencesDoc.get();
+      if (!doc.exists) {
+        return WeatherApiConfig(
+          apiKey: '',
+          units: 'metric',
+          language: 'en',
+          isEnabled: false,
+          updatedAt: DateTime.now(),
+        );
+      }
+      
+      final data = doc.data() as Map<String, dynamic>;
+      final configData = data['weather_config'] as Map<String, dynamic>? ?? {};
+      return WeatherApiConfig.fromJson(configData);
+    } catch (e) {
+      return WeatherApiConfig(
+        apiKey: '',
+        units: 'metric',
+        language: 'en',
+        isEnabled: false,
+        updatedAt: DateTime.now(),
+      );
+    }
+  }
+
+  @override
+  Future<void> updateConfig(WeatherApiConfig config) async {
+    try {
+      await _userPreferencesDoc.set({
+        'weather_config': config.toJson(),
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('Failed to update weather config: $e');
+    }
+  }
+
+  @override
+  Future<List<WeatherLocation>> getLocations() async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.getLocations();
+  }
+
+  @override
+  Future<void> addLocation(WeatherLocation location) async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.addLocation(location);
+  }
+
+  @override
+  Future<void> removeLocation(String locationId) async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.removeLocation(locationId);
+  }
+
+  @override
+  Future<void> setDefaultLocation(String locationId) async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.setDefaultLocation(locationId);
+  }
+
+  @override
+  Future<WeatherLocation?> getDefaultLocation() async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.getDefaultLocation();
+  }
+
+  @override
+  Future<WeatherData> getCurrentWeatherForLocation(WeatherLocation location) async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.getCurrentWeatherForLocation(location);
+  }
+
+  @override
+  Future<WeatherData?> getCurrentWeatherForDefault() async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.getCurrentWeatherForDefault();
+  }
+
+  @override
+  Future<List<WeatherLocation>> searchLocations(String query) async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.searchLocations(query);
+  }
+
+  @override
+  Future<bool> validateApiKey(String apiKey) async {
+    // For now, delegate to mock implementation
+    final mockRepo = MockWeatherRepository();
+    return mockRepo.validateApiKey(apiKey);
   }
 }

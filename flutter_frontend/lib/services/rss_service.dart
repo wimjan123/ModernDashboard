@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import 'package:crypto/crypto.dart';
@@ -16,6 +17,11 @@ class RSSService {
       // Check cache first
       if (_isCacheValid(feed.id)) {
         return _cache[feed.id] ?? [];
+      }
+
+      // For web platform, we need to use CORS proxy or return mock data
+      if (kIsWeb) {
+        return _getMockArticlesForFeed(feed);
       }
 
       final response = await http
@@ -264,5 +270,111 @@ class RSSService {
         'category': 'Science',
       },
     ];
+  }
+
+  /// Get mock articles for web platform (CORS limitations)
+  static Future<List<NewsArticle>> _getMockArticlesForFeed(RSSFeed feed) async {
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    final now = DateTime.now();
+    final mockArticles = <NewsArticle>[];
+    
+    // Generate 10 mock articles based on feed category
+    for (int i = 0; i < 10; i++) {
+      final id = _generateArticleId('mock-${feed.id}-$i', 'Mock Article $i');
+      mockArticles.add(NewsArticle(
+        id: id,
+        title: _getMockTitle(feed.category, i),
+        description: _getMockDescription(feed.category, i),
+        url: 'https://example.com/article-$i',
+        imageUrl: _getMockImageUrl(i),
+        publishedAt: now.subtract(Duration(hours: i)),
+        feedId: feed.id,
+        feedName: feed.name,
+      ));
+    }
+    
+    // Cache mock data
+    _cache[feed.id] = mockArticles;
+    _cacheTimestamps[feed.id] = DateTime.now();
+    
+    return mockArticles;
+  }
+
+  /// Get mock title based on category
+  static String _getMockTitle(String category, int index) {
+    final titles = {
+      'News': [
+        'Breaking: Major Economic Developments',
+        'Global Climate Summit Reaches Agreement',
+        'New Technology Transforms Healthcare',
+        'International Trade Relations Update',
+        'Space Exploration Milestone Achieved',
+        'Environmental Protection Initiatives',
+        'Education Reform Proposals Announced',
+        'Scientific Breakthrough in Medicine',
+        'Cultural Festival Brings Communities Together',
+        'Innovation in Renewable Energy'
+      ],
+      'Technology': [
+        'AI Revolution: Latest Advances',
+        'Quantum Computing Breakthrough',
+        'Mobile Technology Trends 2024',
+        'Cybersecurity Alert: New Threats',
+        'Cloud Infrastructure Updates',
+        'IoT Devices Transform Smart Homes',
+        'Machine Learning Applications',
+        'Blockchain Technology Adoption',
+        'Virtual Reality Gaming Evolution',
+        'Software Development Best Practices'
+      ],
+      'Sports': [
+        'Championship Finals This Weekend',
+        'Record-Breaking Performance',
+        'Team Trades Shake Up League',
+        'Olympic Preparation Updates',
+        'Rookie Player Makes Headlines',
+        'Stadium Renovation Complete',
+        'Season Highlights Review',
+        'Injury Recovery Success Story',
+        'International Tournament Begins',
+        'Training Camp Reports'
+      ],
+      'Science': [
+        'Mars Mission Update',
+        'Medical Research Findings',
+        'Ocean Exploration Discovery',
+        'Particle Physics Experiment',
+        'Biodiversity Conservation Study',
+        'Astronomical Observatory Data',
+        'Genetic Engineering Progress',
+        'Climate Research Results',
+        'Archaeological Excavation',
+        'Laboratory Innovation'
+      ],
+    };
+    
+    final categoryTitles = titles[category] ?? titles['News']!;
+    return categoryTitles[index % categoryTitles.length];
+  }
+
+  /// Get mock description based on category
+  static String _getMockDescription(String category, int index) {
+    final descriptions = {
+      'News': 'This is a sample news article description providing key information about current events and their impact on society.',
+      'Technology': 'Exploring the latest technological innovations and their applications in various industries and everyday life.',
+      'Sports': 'Coverage of athletic competitions, player performances, and sporting events from around the world.',
+      'Science': 'Scientific discoveries, research findings, and breakthroughs that advance our understanding of the world.',
+    };
+    
+    final base = descriptions[category] ?? descriptions['News']!;
+    return '$base Updated ${index + 1} hour${index == 0 ? '' : 's'} ago with additional details.';
+  }
+
+  /// Get mock image URL
+  static String _getMockImageUrl(int index) {
+    final imageIds = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
+    return 'https://picsum.photos/400/300?random=${imageIds[index % imageIds.length]}';
   }
 }

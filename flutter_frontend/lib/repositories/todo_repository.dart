@@ -57,18 +57,50 @@ class TodoItem {
       category: json['category'] ?? 'general',
       priority: json['priority'] ?? 'medium',
       status: json['status'] ?? 'pending',
-      createdAt: json['created_at'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(json['created_at'])
-          : DateTime.now(),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['updated_at'])
-          : DateTime.now(),
-      dueDate: json['due_date'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['due_date'])
-          : null,
+      createdAt: _parseTimestamp(json['created_at']) ?? DateTime.now(),
+      updatedAt: _parseTimestamp(json['updated_at']) ?? DateTime.now(),
+      dueDate: _parseTimestamp(json['due_date']),
       tags: List<String>.from(json['tags'] ?? []),
       userId: json['user_id'],
     );
+  }
+
+  /// Helper method to parse timestamps from various formats
+  static DateTime? _parseTimestamp(dynamic timestamp) {
+    if (timestamp == null) return null;
+    
+    try {
+      // Handle Firestore Timestamp
+      if (timestamp is Map && timestamp.containsKey('_seconds')) {
+        final seconds = timestamp['_seconds'] as int?;
+        final nanoseconds = timestamp['_nanoseconds'] as int? ?? 0;
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(
+            (seconds * 1000) + (nanoseconds ~/ 1000000),
+          );
+        }
+      }
+      
+      // Handle milliseconds since epoch
+      if (timestamp is int) {
+        return DateTime.fromMillisecondsSinceEpoch(timestamp);
+      }
+      
+      // Handle string timestamp
+      if (timestamp is String) {
+        return DateTime.parse(timestamp);
+      }
+      
+      // Handle DateTime objects directly
+      if (timestamp is DateTime) {
+        return timestamp;
+      }
+    } catch (e) {
+      // If parsing fails, return current time for required fields
+      // or null for optional fields like dueDate
+    }
+    
+    return null;
   }
 
   /// Convert TodoItem to JSON (for Firestore storage)
