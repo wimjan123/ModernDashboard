@@ -52,6 +52,12 @@ class FirebaseService {
   /// Check network connectivity before Firebase operations
   Future<bool> _checkNetworkConnectivity() async {
     try {
+      // For web, assume connectivity is available since we can load the page
+      if (kIsWeb) {
+        _logger.d('Web platform - assuming network connectivity is available');
+        return true;
+      }
+      
       final dynamic connectivityResult = await Connectivity().checkConnectivity();
       // Handle both single result and list result for different versions
       late List<ConnectivityResult> results;
@@ -68,7 +74,9 @@ class FirebaseService {
       return isConnected;
     } catch (e) {
       _logger.w('Failed to check network connectivity: $e');
-      return false;
+      // For web, if connectivity check fails, assume we have connectivity
+      // since we were able to load the web page
+      return kIsWeb;
     }
   }
 
@@ -127,7 +135,20 @@ class FirebaseService {
         return false;
       }
       
-      // Try a simple Firestore operation with a short timeout
+      // For web, use a lighter availability check
+      if (kIsWeb) {
+        try {
+          // Just check if we can create a document reference - don't actually read
+          _firestore!.collection('_test').doc('connectivity');
+          _logger.d('Firebase services are available (web)');
+          return true;
+        } catch (e) {
+          _logger.w('Firebase availability check failed on web: $e');
+          return false;
+        }
+      }
+      
+      // Try a simple Firestore operation with a short timeout for native platforms
       final testDoc = _firestore!.collection('_test').doc('connectivity');
       await testDoc.get().timeout(
         const Duration(seconds: 5),

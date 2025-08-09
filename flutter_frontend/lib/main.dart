@@ -65,25 +65,6 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
           builder: (context, snapshot) {
             final status = snapshot.data;
             
-            // For web, show offline skip option immediately
-            if (kIsWeb && (status == null || status.isInProgress)) {
-              return InitializationProgressScreen(
-                status: status,
-                onCancel: () {
-                  FirebaseService.instance.cancelInitialization();
-                },
-                onSkipToOffline: () async {
-                  await RepositoryProvider.instance.switchToOfflineMode();
-                  // Navigate directly to dashboard after switching to offline
-                  if (context.mounted) {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const DashboardScreen()),
-                    );
-                  }
-                },
-                showOfflineOption: true, // Always show for web
-              );
-            }
             
             if (status == null || status.isInProgress) {
               return InitializationProgressScreen(
