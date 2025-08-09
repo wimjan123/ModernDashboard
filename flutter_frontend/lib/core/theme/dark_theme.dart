@@ -168,6 +168,7 @@ class DarkThemeData {
   static const Color warningColor = _warning;
   static const Color errorColor = _error;
   static const Color accentColor = _accent;
+  static const Color cardColor = _cardGlass;
   static const Color glassBorder = Color(0xFF475569);
   static const Color glassBackground = Color(0x1A4F46E5);
 }

@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../news_widget/news_widget.dart';
+import '../news_widget/enhanced_news_widget.dart';
 import '../weather_widget/weather_widget.dart';
 import '../todo_widget/todo_widget.dart';
 import '../mail_widget/mail_widget.dart';
+import '../stream_widget/video_stream_widget.dart';
 import '../common/glass_card.dart';
 import '../../core/theme/dark_theme.dart';
 import '../../firebase/firebase_service.dart';
@@ -54,6 +55,12 @@ class _DashboardLayoutState extends State<DashboardLayout>
       title: 'Tasks', 
       icon: Icons.checklist_rounded,
       accentColor: DarkThemeData.successColor,
+    ),
+    WidgetConfig(
+      id: 'video', 
+      title: 'Live Streams', 
+      icon: Icons.play_circle_rounded,
+      accentColor: Color(0xFFE91E63),
     ),
     WidgetConfig(
       id: 'mail', 
@@ -164,13 +171,16 @@ class _DashboardLayoutState extends State<DashboardLayout>
     Widget content;
     switch (cfg.id) {
       case 'news':
-        content = const NewsWidget();
+        content = const EnhancedNewsWidget();
         break;
       case 'weather':
         content = const WeatherWidget();
         break;
       case 'todo':
         content = const TodoWidget();
+        break;
+      case 'video':
+        content = const VideoStreamWidget();
         break;
       case 'mail':
         content = const MailWidget();

@@ -5,6 +5,8 @@ import '../firebase/firebase_service.dart';
 import 'todo_repository.dart';
 import 'weather_repository.dart';
 import 'news_repository.dart';
+import 'rss_feed_repository.dart';
+import 'video_stream_repository.dart';
 import 'firestore_todo_repository.dart';
 import 'cloud_weather_repository.dart';
 import 'cloud_news_repository.dart';
@@ -23,6 +25,8 @@ class RepositoryProvider extends ChangeNotifier {
   TodoRepository? _todoRepository;
   WeatherRepository? _weatherRepository;
   NewsRepository? _newsRepository;
+  RSSFeedRepository? _rssFeedRepository;
+  VideoStreamRepository? _videoStreamRepository;
   
   bool _isInitialized = false;
   bool _authenticationRequired = false;
@@ -82,6 +86,8 @@ class RepositoryProvider extends ChangeNotifier {
         await _initializeTodoRepository();
         await _initializeWeatherRepository();
         await _initializeNewsRepository();
+        await _initializeRSSFeedRepository();
+        await _initializeVideoStreamRepository();
         debugPrint('RepositoryProvider: All repositories initialized with Firebase');
       }
 
@@ -133,6 +139,22 @@ class RepositoryProvider extends ChangeNotifier {
       throw Exception('NewsRepository not initialized. Call initialize() first.');
     }
     return _newsRepository!;
+  }
+
+  /// Get RSSFeedRepository instance
+  RSSFeedRepository get rssFeedRepository {
+    if (_rssFeedRepository == null) {
+      throw Exception('RSSFeedRepository not initialized. Call initialize() first.');
+    }
+    return _rssFeedRepository!;
+  }
+
+  /// Get VideoStreamRepository instance
+  VideoStreamRepository get videoStreamRepository {
+    if (_videoStreamRepository == null) {
+      throw Exception('VideoStreamRepository not initialized. Call initialize() first.');
+    }
+    return _videoStreamRepository!;
   }
 
   /// Initialize todo repository with Firestore implementation
@@ -191,12 +213,34 @@ class RepositoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Initialize RSS feed repository with Firestore implementation
+  Future<void> _initializeRSSFeedRepository() async {
+    try {
+      debugPrint('RepositoryProvider: Using Firestore RSS feed repository');
+      _rssFeedRepository = FirestoreRSSFeedRepository();
+    } catch (e) {
+      throw Exception('Failed to initialize RSS feed repository: $e');
+    }
+  }
+
+  /// Initialize video stream repository with Firestore implementation
+  Future<void> _initializeVideoStreamRepository() async {
+    try {
+      debugPrint('RepositoryProvider: Using Firestore video stream repository');
+      _videoStreamRepository = FirestoreVideoStreamRepository();
+    } catch (e) {
+      throw Exception('Failed to initialize video stream repository: $e');
+    }
+  }
+
   /// Initialize all repositories with offline/mock implementations
   Future<void> _initializeOfflineRepositories() async {
     try {
       await _initializeOfflineTodoRepository();
       await _initializeOfflineWeatherRepository();
       await _initializeOfflineNewsRepository();
+      await _initializeOfflineRSSFeedRepository();
+      await _initializeOfflineVideoStreamRepository();
       debugPrint('RepositoryProvider: All offline repositories initialized successfully');
     } catch (e) {
       throw Exception('Failed to initialize offline repositories: $e');
@@ -234,17 +278,41 @@ class RepositoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Initialize RSS feed repository with mock implementation
+  Future<void> _initializeOfflineRSSFeedRepository() async {
+    try {
+      debugPrint('RepositoryProvider: Using mock RSS feed repository for offline mode');
+      _rssFeedRepository = MockRSSFeedRepository();
+    } catch (e) {
+      throw Exception('Failed to initialize mock RSS feed repository: $e');
+    }
+  }
+
+  /// Initialize video stream repository with mock implementation
+  Future<void> _initializeOfflineVideoStreamRepository() async {
+    try {
+      debugPrint('RepositoryProvider: Using mock video stream repository for offline mode');
+      _videoStreamRepository = MockVideoStreamRepository();
+    } catch (e) {
+      throw Exception('Failed to initialize mock video stream repository: $e');
+    }
+  }
+
   /// Check if all repositories are using Firebase implementations
   bool get isUsingFirebase => 
       _todoRepository is FirestoreTodoRepository &&
       _weatherRepository is CloudWeatherRepository &&
-      _newsRepository is CloudNewsRepository;
+      _newsRepository is CloudNewsRepository &&
+      _rssFeedRepository is FirestoreRSSFeedRepository &&
+      _videoStreamRepository is FirestoreVideoStreamRepository;
 
   /// Check if all repositories are using mock implementations (offline mode)
   bool get isUsingMockRepositories =>
       _todoRepository is MockTodoRepository &&
       _weatherRepository is MockWeatherRepository &&
-      _newsRepository is MockNewsRepository;
+      _newsRepository is MockNewsRepository &&
+      _rssFeedRepository is MockRSSFeedRepository &&
+      _videoStreamRepository is MockVideoStreamRepository;
 
   /// Switch to offline mode manually
   Future<void> switchToOfflineMode() async {
