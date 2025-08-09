@@ -1,12 +1,23 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'firebase_service.dart';
 
 /// Manages user settings in Firestore with cross-device synchronization
+/// and handles authentication state changes with automatic settings migration
 class SettingsService {
   static SettingsService? _instance;
   static SettingsService get instance => _instance ??= SettingsService._();
   
-  SettingsService._();
+  SettingsService._() {
+    _initializeAuthListener();
+  }
+
+  // Auth state management
+  StreamSubscription<User?>? _authSubscription;
+  StreamController<Map<String, dynamic>?>? _settingsStreamController;
+  Map<String, dynamic>? _preservedSettings;
 
   /// Get the user's settings document reference
   DocumentReference<Map<String, dynamic>>? _getSettingsDocument() {
@@ -172,6 +183,262 @@ class SettingsService {
     } catch (e) {
       print('Error getting user info: $e');
       return null;
+    }
+  }
+
+  // Authentication State Handling
+
+  /// Initialize authentication state listener
+  void _initializeAuthListener() {
+    try {
+      _authSubscription = FirebaseAuth.instance.authStateChanges().listen(
+        (User? user) {
+          debugPrint('SettingsService: Auth state changed - User: ${user?.uid}');
+          _handleAuthStateChange(user);
+        },
+        onError: (error) {
+          debugPrint('SettingsService: Auth state error - $error');
+        },
+      );
+    } catch (e) {
+      debugPrint('SettingsService: Failed to initialize auth listener - $e');
+    }
+  }
+
+  /// Handle authentication state changes
+  void _handleAuthStateChange(User? user) {
+    try {
+      if (user != null) {
+        debugPrint('SettingsService: User authenticated, refreshing settings stream');
+        _refreshSettingsStream();
+      } else {
+        debugPrint('SettingsService: User signed out, closing settings stream');
+        _closeSettingsStream();
+      }
+    } catch (e) {
+      debugPrint('SettingsService: Error handling auth state change - $e');
+    }
+  }
+
+  /// Refresh settings stream when auth state changes
+  void _refreshSettingsStream() {
+    try {
+      _closeSettingsStream();
+      _settingsStreamController = StreamController<Map<String, dynamic>?>.broadcast();
+      
+      final settingsStream = getSettingsStream();
+      if (settingsStream != null) {
+        settingsStream.listen(
+          (settings) {
+            _settingsStreamController?.add(settings);
+          },
+          onError: (error) {
+            debugPrint('SettingsService: Settings stream error - $error');
+            _settingsStreamController?.addError(error);
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('SettingsService: Error refreshing settings stream - $e');
+    }
+  }
+
+  /// Close settings stream
+  void _closeSettingsStream() {
+    try {
+      _settingsStreamController?.close();
+      _settingsStreamController = null;
+    } catch (e) {
+      debugPrint('SettingsService: Error closing settings stream - $e');
+    }
+  }
+
+  /// Get enhanced settings stream that responds to auth changes
+  Stream<Map<String, dynamic>?> getEnhancedSettingsStream() {
+    if (_settingsStreamController == null) {
+      _refreshSettingsStream();
+    }
+    return _settingsStreamController?.stream ?? Stream.empty();
+  }
+
+  /// Manually refresh settings stream
+  void refreshSettingsStream() {
+    _refreshSettingsStream();
+  }
+
+  // Settings Migration for Account Linking
+
+  /// Preserve anonymous user settings before account linking
+  Future<void> preserveAnonymousSettings() async {
+    try {
+      debugPrint('SettingsService: Preserving anonymous settings before account linking');
+      final currentSettings = await loadSettings();
+      _preservedSettings = Map<String, dynamic>.from(currentSettings);
+      
+      // Add preservation metadata
+      _preservedSettings!['_preserved_at'] = DateTime.now().toIso8601String();
+      _preservedSettings!['_preserved_user_id'] = FirebaseService.instance.getUserId();
+      
+      debugPrint('SettingsService: Successfully preserved ${_preservedSettings!.length} settings');
+    } catch (e) {
+      debugPrint('SettingsService: Error preserving anonymous settings - $e');
+      rethrow;
+    }
+  }
+
+  /// Restore preserved settings after successful account linking
+  Future<void> restorePreservedSettings() async {
+    try {
+      if (_preservedSettings == null) {
+        debugPrint('SettingsService: No preserved settings to restore');
+        return;
+      }
+      
+      debugPrint('SettingsService: Restoring preserved settings after account linking');
+      
+      // Remove preservation metadata
+      final settingsToRestore = Map<String, dynamic>.from(_preservedSettings!);
+      settingsToRestore.remove('_preserved_at');
+      settingsToRestore.remove('_preserved_user_id');
+      
+      // Save to the new user account
+      await saveSettings(settingsToRestore);
+      
+      // Clean up preserved settings
+      _preservedSettings = null;
+      
+      debugPrint('SettingsService: Successfully restored ${settingsToRestore.length} settings');
+    } catch (e) {
+      debugPrint('SettingsService: Error restoring preserved settings - $e');
+      rethrow;
+    }
+  }
+
+  /// Clean up preserved settings (called on failure)
+  void cleanupPreservedSettings() {
+    try {
+      _preservedSettings = null;
+      debugPrint('SettingsService: Cleaned up preserved settings');
+    } catch (e) {
+      debugPrint('SettingsService: Error cleaning up preserved settings - $e');
+    }
+  }
+
+  /// Migrate settings from one user to another
+  Future<void> migrateAnonymousSettings(String fromUserId, String toUserId) async {
+    try {
+      debugPrint('SettingsService: Migrating settings from $fromUserId to $toUserId');
+      
+      // Get source settings document
+      final fromDoc = FirebaseService.instance.firestore
+          ?.collection('users')
+          .doc(fromUserId)
+          .collection('settings')
+          .doc('app_settings');
+      
+      if (fromDoc == null) {
+        throw Exception('Firestore not available');
+      }
+      
+      final sourceSnapshot = await fromDoc.get();
+      if (!sourceSnapshot.exists) {
+        debugPrint('SettingsService: No source settings to migrate');
+        return;
+      }
+      
+      final sourceSettings = sourceSnapshot.data()!;
+      
+      // Get destination settings document
+      final toDoc = FirebaseService.instance.firestore!
+          .collection('users')
+          .doc(toUserId)
+          .collection('settings')
+          .doc('app_settings');
+      
+      final destSnapshot = await toDoc.get();
+      Map<String, dynamic> finalSettings;
+      
+      if (destSnapshot.exists) {
+        // Merge settings, preferring newer timestamps
+        final destSettings = destSnapshot.data()!;
+        finalSettings = _mergeSettings(sourceSettings, destSettings);
+      } else {
+        // No destination settings, use source settings
+        finalSettings = Map<String, dynamic>.from(sourceSettings);
+      }
+      
+      // Update migration metadata
+      finalSettings['migrated_from'] = fromUserId;
+      finalSettings['migrated_at'] = DateTime.now().toIso8601String();
+      finalSettings['lastUpdated'] = FieldValue.serverTimestamp();
+      
+      // Save merged settings
+      await toDoc.set(finalSettings);
+      
+      debugPrint('SettingsService: Successfully migrated settings');
+    } catch (e) {
+      debugPrint('SettingsService: Error migrating settings - $e');
+      rethrow;
+    }
+  }
+
+  /// Merge two settings maps, preferring newer timestamps
+  Map<String, dynamic> _mergeSettings(
+    Map<String, dynamic> source,
+    Map<String, dynamic> destination,
+  ) {
+    final merged = Map<String, dynamic>.from(destination);
+    
+    // Get timestamps for comparison
+    final sourceTimestamp = _getTimestamp(source['lastUpdated']);
+    final destTimestamp = _getTimestamp(destination['lastUpdated']);
+    
+    // If source is newer, prefer source settings
+    if (sourceTimestamp != null && destTimestamp != null) {
+      if (sourceTimestamp.isAfter(destTimestamp)) {
+        // Source is newer, use source settings but keep destination metadata
+        merged.addAll(source);
+        merged['merged_from_newer'] = true;
+      } else {
+        // Destination is newer, keep destination settings
+        merged['merged_from_older'] = true;
+      }
+    } else {
+      // Can't compare timestamps, merge manually
+      source.forEach((key, value) {
+        if (!merged.containsKey(key)) {
+          merged[key] = value;
+        }
+      });
+      merged['merged_without_timestamps'] = true;
+    }
+    
+    return merged;
+  }
+
+  /// Extract DateTime from Firestore timestamp
+  DateTime? _getTimestamp(dynamic timestamp) {
+    try {
+      if (timestamp is Timestamp) {
+        return timestamp.toDate();
+      } else if (timestamp is String) {
+        return DateTime.tryParse(timestamp);
+      }
+    } catch (e) {
+      debugPrint('SettingsService: Error parsing timestamp - $e');
+    }
+    return null;
+  }
+
+  /// Dispose resources
+  void dispose() {
+    try {
+      _authSubscription?.cancel();
+      _closeSettingsStream();
+      _preservedSettings = null;
+      debugPrint('SettingsService: Disposed successfully');
+    } catch (e) {
+      debugPrint('SettingsService: Error during dispose - $e');
     }
   }
 }

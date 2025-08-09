@@ -2,12 +2,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'core/theme/dark_theme.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/migration_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/initialization_progress_screen.dart';
 import 'firebase/firebase_service.dart';
 import 'firebase/migration_service.dart';
+import 'firebase/auth_service.dart';
+import 'firebase/settings_service.dart';
 import 'repositories/repository_provider.dart';
 import 'core/exceptions/initialization_exception.dart';
 import 'core/models/initialization_status.dart';
@@ -87,21 +91,32 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
               );
             }
             
-            // Check for migration needs
-            return FutureBuilder<bool>(
-              future: _checkMigrationNeeded(),
-              builder: (context, migrationSnapshot) {
-                if (migrationSnapshot.connectionState == ConnectionState.waiting) {
-                  return const InitializationProgressScreen(
-                    status: null, // Will show default loading
-                  );
+            // Check authentication and migration needs
+            return StreamBuilder<User?>(
+              stream: AuthService.instance.authStateChanges,
+              builder: (context, authSnapshot) {
+                // Check if authentication flow is needed
+                if (_shouldShowLoginScreen()) {
+                  return const LoginScreen();
                 }
                 
-                if (migrationSnapshot.data == true) {
-                  return const MigrationScreen();
-                }
-                
-                return const DashboardScreen();
+                // Check for migration needs after authentication
+                return FutureBuilder<bool>(
+                  future: _checkMigrationNeeded(),
+                  builder: (context, migrationSnapshot) {
+                    if (migrationSnapshot.connectionState == ConnectionState.waiting) {
+                      return const InitializationProgressScreen(
+                        status: null, // Will show default loading
+                      );
+                    }
+                    
+                    if (migrationSnapshot.data == true) {
+                      return const MigrationScreen();
+                    }
+                    
+                    return const DashboardScreen();
+                  },
+                );
               },
             );
           },
@@ -111,6 +126,23 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
     );
   }
   
+  /// Check if the login screen should be shown
+  bool _shouldShowLoginScreen() {
+    // Skip login screen if in offline mode
+    if (RepositoryProvider.instance.offlineModeActive) {
+      return false;
+    }
+    
+    // For this implementation, we'll use a simple policy:
+    // - Show login screen for users who want to authenticate but aren't
+    // - Never force authentication - always allow anonymous/guest access
+    // - Users can choose to sign in from the login screen or continue as guest
+    
+    // For now, this will be false to maintain current behavior
+    // The login screen can be accessed through the AccountMenu widget
+    return false;
+  }
+
   Future<bool> _checkMigrationNeeded() async {
     try {
       // Skip migration check if in offline mode

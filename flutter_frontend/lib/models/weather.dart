@@ -169,6 +169,9 @@ class WeatherData {
     return now.difference(timestamp).inHours < 1;
   }
 
+  /// Backward compatibility alias for isRecent
+  bool get isFresh => isRecent;
+
   @override
   String toString() {
     return 'WeatherData(location: $location, temperature: $formattedTemperature, description: $description)';

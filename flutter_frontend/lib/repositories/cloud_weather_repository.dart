@@ -2,13 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../firebase/firebase_service.dart';
+import '../firebase/remote_config_service.dart';
 import '../models/weather.dart';
 import 'weather_repository.dart';
+import 'mock_weather_repository.dart';
 
 class CloudWeatherRepository implements WeatherRepository {
   final FirebaseService _firebaseService = FirebaseService.instance;
+  final RemoteConfigService _remoteConfigService = RemoteConfigService.instance;
   final String _baseUrl = 'https://api.openweathermap.org/data/2.5';
-  final String _apiKey = ''; // TODO: Set via environment variable or Firebase Remote Config
   
   CollectionReference get _weatherCacheCollection => 
       _firebaseService.getUserCollection('weather_cache');
@@ -21,7 +23,7 @@ class CloudWeatherRepository implements WeatherRepository {
     try {
       // Check cache first
       final cachedWeather = await _getCachedWeather(location);
-      if (cachedWeather != null && cachedWeather.isFresh) {
+      if (cachedWeather != null && cachedWeather.isRecent) {
         return cachedWeather;
       }
       
@@ -48,7 +50,7 @@ class CloudWeatherRepository implements WeatherRepository {
     try {
       // Check cache for forecast data
       final cachedForecast = await _getCachedForecast(location);
-      if (cachedForecast.isNotEmpty && cachedForecast.first.isFresh) {
+      if (cachedForecast.isNotEmpty && cachedForecast.first.isRecent) {
         return cachedForecast;
       }
       
@@ -106,11 +108,15 @@ class CloudWeatherRepository implements WeatherRepository {
 
   /// Fetch weather data from OpenWeatherMap API
   Future<WeatherData> _fetchWeatherFromAPI(String location) async {
-    if (_apiKey.isEmpty) {
-      throw Exception('Weather API key not configured');
+    final apiKey = _remoteConfigService.getWeatherApiKey();
+    if (apiKey.isEmpty) {
+      throw Exception('Weather API key not configured in Firebase Remote Config');
     }
     
-    final url = '$_baseUrl/weather?q=$location&appid=$_apiKey&units=metric';
+    final units = _remoteConfigService.getDefaultWeatherUnits();
+    final language = _remoteConfigService.getDefaultWeatherLanguage();
+    
+    final url = '$_baseUrl/weather?q=$location&appid=$apiKey&units=$units&lang=$language';
     final response = await http.get(Uri.parse(url));
     
     if (response.statusCode != 200) {
@@ -123,11 +129,15 @@ class CloudWeatherRepository implements WeatherRepository {
 
   /// Fetch forecast data from OpenWeatherMap API
   Future<List<WeatherData>> _fetchForecastFromAPI(String location) async {
-    if (_apiKey.isEmpty) {
-      throw Exception('Weather API key not configured');
+    final apiKey = _remoteConfigService.getWeatherApiKey();
+    if (apiKey.isEmpty) {
+      throw Exception('Weather API key not configured in Firebase Remote Config');
     }
     
-    final url = '$_baseUrl/forecast?q=$location&appid=$_apiKey&units=metric';
+    final units = _remoteConfigService.getDefaultWeatherUnits();
+    final language = _remoteConfigService.getDefaultWeatherLanguage();
+    
+    final url = '$_baseUrl/forecast?q=$location&appid=$apiKey&units=$units&lang=$language';
     final response = await http.get(Uri.parse(url));
     
     if (response.statusCode != 200) {
@@ -150,17 +160,20 @@ class CloudWeatherRepository implements WeatherRepository {
     return WeatherData(
       id: '${location}_current_${now.millisecondsSinceEpoch}',
       location: location,
+      latitude: 0.0,
+      longitude: 0.0,
       temperature: (main['temp'] ?? 0).toDouble(),
-      humidity: (main['humidity'] ?? 0).toDouble(),
-      conditions: weather['description'] ?? '',
-      iconCode: weather['icon'] ?? '',
-      updatedAt: now,
-      cachedAt: now,
-      expiresAt: now.add(const Duration(minutes: 10)),
-      userId: _firebaseService.getUserId(),
+      feelsLike: (main['feels_like'] ?? main['temp'] ?? 0).toDouble(),
+      humidity: (main['humidity'] ?? 0).round(),
+      description: weather['description'] ?? '',
+      icon: weather['icon'] ?? '',
+      timestamp: now,
       windSpeed: (wind['speed'] ?? 0).toDouble(),
+      windDirection: (wind['deg'] ?? 0).round(),
       pressure: (main['pressure'] ?? 0).toDouble(),
-      visibility: (data['visibility'] ?? 0).toDouble() / 1000, // Convert to km
+      cloudiness: (data['clouds']?['all'] ?? 0).round(),
+      visibility: ((data['visibility'] ?? 0).toDouble() / 1000).round(), // Convert to km
+      units: 'metric',
     );
   }
 
@@ -182,16 +195,20 @@ class CloudWeatherRepository implements WeatherRepository {
       forecastItems.add(WeatherData(
         id: '${location}_forecast_${item['dt']}',
         location: location,
+        latitude: 0.0,
+        longitude: 0.0,
         temperature: (main['temp'] ?? 0).toDouble(),
-        humidity: (main['humidity'] ?? 0).toDouble(),
-        conditions: weather['description'] ?? '',
-        iconCode: weather['icon'] ?? '',
-        updatedAt: forecastTime,
-        cachedAt: DateTime.now(),
-        expiresAt: DateTime.now().add(const Duration(minutes: 30)),
-        userId: _firebaseService.getUserId(),
+        feelsLike: (main['feels_like'] ?? main['temp'] ?? 0).toDouble(),
+        humidity: (main['humidity'] ?? 0).round(),
+        description: weather['description'] ?? '',
+        icon: weather['icon'] ?? '',
+        timestamp: forecastTime,
         windSpeed: (wind['speed'] ?? 0).toDouble(),
+        windDirection: (wind['deg'] ?? 0).round(),
         pressure: (main['pressure'] ?? 0).toDouble(),
+        cloudiness: (item['clouds']?['all'] ?? 0).round(),
+        visibility: 10, // Default visibility for forecast
+        units: 'metric',
       ));
     }
     
@@ -313,25 +330,14 @@ class CloudWeatherRepository implements WeatherRepository {
     }
   }
 
-  // New interface methods
+  // New interface methods - now using Firebase Remote Config
   @override
   Future<WeatherApiConfig> getConfig() async {
     try {
-      final doc = await _userPreferencesDoc.get();
-      if (!doc.exists) {
-        return WeatherApiConfig(
-          apiKey: '',
-          units: 'metric',
-          language: 'en',
-          isEnabled: false,
-          updatedAt: DateTime.now(),
-        );
-      }
-      
-      final data = doc.data() as Map<String, dynamic>;
-      final configData = data['weather_config'] as Map<String, dynamic>? ?? {};
-      return WeatherApiConfig.fromJson(configData);
+      // Get configuration from Firebase Remote Config instead of user input
+      return _remoteConfigService.getWeatherConfig();
     } catch (e) {
+      // Fallback configuration
       return WeatherApiConfig(
         apiKey: '',
         units: 'metric',
@@ -344,13 +350,17 @@ class CloudWeatherRepository implements WeatherRepository {
 
   @override
   Future<void> updateConfig(WeatherApiConfig config) async {
+    // Store user preferences (units, language) but API key is managed via Remote Config
     try {
       await _userPreferencesDoc.set({
-        'weather_config': config.toJson(),
-        'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'weather_preferences': {
+          'units': config.units,
+          'language': config.language,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        }
       }, SetOptions(merge: true));
     } catch (e) {
-      throw Exception('Failed to update weather config: $e');
+      throw Exception('Failed to update weather preferences: $e');
     }
   }
 

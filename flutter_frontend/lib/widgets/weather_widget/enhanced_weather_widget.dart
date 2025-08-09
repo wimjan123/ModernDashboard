@@ -471,9 +471,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _currentWeather!.getTemperatureString(
-                        celsius: _config?.units != 'imperial',
-                      ),
+                      _currentWeather!.formattedTemperature,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 32,
@@ -481,7 +479,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                       ),
                     ),
                     Text(
-                      _currentWeather!.conditions,
+                      _currentWeather!.description,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 16,
@@ -490,7 +488,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                     ),
                     if (_currentWeather!.windSpeed != null)
                       Text(
-                        'Feels like ${_currentWeather!.getTemperatureString(celsius: _config?.units != 'imperial')}',
+                        'Feels like ${_currentWeather!.formattedFeelsLike}',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.6),
                           fontSize: 12,

@@ -11,6 +11,7 @@ import '../core/exceptions/initialization_exception.dart';
 import '../core/models/initialization_status.dart';
 import '../core/services/backoff_strategy.dart';
 import 'firebase_config_validator.dart';
+import 'remote_config_service.dart';
 
 class FirebaseService {
   static FirebaseService? _instance;
@@ -351,8 +352,18 @@ class FirebaseService {
       
       if (_shouldCancel()) return;
 
-      // Sign in anonymously if no user exists and auth is enabled
-      if (_auth!.currentUser == null && enableAnonymousAuth) {
+      // Check for existing authenticated user
+      if (_auth!.currentUser != null) {
+        _currentUser = _auth!.currentUser;
+        _logger.i('Found existing authenticated user: ${_currentUser!.uid}');
+        
+        // If user is authenticated with email/password, skip anonymous auth
+        if (!_currentUser!.isAnonymous) {
+          _logger.i('User authenticated with email/password, skipping anonymous auth');
+          _anonymousAuthEnabled = false;
+        }
+      } else if (enableAnonymousAuth) {
+        // Sign in anonymously only if no user exists and auth is enabled
         try {
           await signInAnonymously();
         } on FirebaseException catch (e) {
@@ -363,8 +374,6 @@ class FirebaseService {
             rethrow;
           }
         }
-      } else if (_auth!.currentUser != null) {
-        _currentUser = _auth!.currentUser;
       } else {
         _logger.i('Anonymous authentication disabled, continuing without authentication');
         _anonymousAuthEnabled = false;
@@ -378,6 +387,14 @@ class FirebaseService {
       ));
       
       if (_shouldCancel()) return;
+      
+      // Initialize Remote Config for centralized configuration
+      try {
+        await RemoteConfigService.instance.initialize();
+        _logger.i('Remote Config initialized successfully');
+      } catch (e) {
+        _logger.w('Remote Config initialization failed (continuing without it): $e');
+      }
       
       // Start connectivity monitoring and detect initial offline mode
       _startConnectivityMonitoring();
@@ -477,6 +494,122 @@ class FirebaseService {
   /// Check if user is authenticated
   bool isAuthenticated() {
     return _currentUser != null;
+  }
+
+  // Email/Password Authentication Methods
+  
+  /// Sign in with email and password
+  Future<UserCredential> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      final credential = await _auth!.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      _currentUser = credential.user;
+      debugPrint('Successfully signed in user via FirebaseService: ${credential.user?.email}');
+      return credential;
+    } catch (e) {
+      debugPrint('FirebaseService sign in error: $e');
+      rethrow;
+    }
+  }
+
+  /// Create user with email and password
+  Future<UserCredential> createUserWithEmailAndPassword(String email, String password) async {
+    try {
+      final credential = await _auth!.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      _currentUser = credential.user;
+      debugPrint('Successfully created user via FirebaseService: ${credential.user?.email}');
+      return credential;
+    } catch (e) {
+      debugPrint('FirebaseService user creation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth!.sendPasswordResetEmail(email: email.trim());
+      debugPrint('Password reset email sent via FirebaseService to: $email');
+    } catch (e) {
+      debugPrint('FirebaseService password reset error: $e');
+      rethrow;
+    }
+  }
+
+  /// Link anonymous account with email/password credentials
+  Future<UserCredential> linkAnonymousAccount(String email, String password) async {
+    try {
+      if (_currentUser == null) {
+        throw Exception('No user is currently signed in');
+      }
+
+      if (!_currentUser!.isAnonymous) {
+        throw Exception('Current user is not anonymous');
+      }
+
+      final credential = EmailAuthProvider.credential(
+        email: email.trim(),
+        password: password,
+      );
+
+      final linkedCredential = await _currentUser!.linkWithCredential(credential);
+      _currentUser = linkedCredential.user;
+      
+      debugPrint('Successfully linked anonymous account via FirebaseService: $email');
+      return linkedCredential;
+    } catch (e) {
+      debugPrint('FirebaseService account linking error: $e');
+      rethrow;
+    }
+  }
+
+  /// Upgrade anonymous account to permanent account
+  Future<UserCredential> upgradeAnonymousAccount(String email, String password) async {
+    try {
+      // First preserve settings before account upgrade
+      await _settingsService?.preserveAnonymousSettings();
+      
+      // Link the account
+      final linkedCredential = await linkAnonymousAccount(email, password);
+      
+      // Restore preserved settings after successful linking
+      await _settingsService?.restorePreservedSettings();
+      
+      debugPrint('Successfully upgraded anonymous account via FirebaseService: $email');
+      return linkedCredential;
+    } catch (e) {
+      debugPrint('FirebaseService account upgrade error: $e');
+      // Clean up any preserved settings on failure
+      await _settingsService?.cleanupPreservedSettings();
+      rethrow;
+    }
+  }
+
+  /// Check if current user uses email/password authentication
+  bool isEmailPasswordUser() {
+    if (_currentUser == null) return false;
+    
+    return _currentUser!.providerData
+        .any((info) => info.providerId == 'password');
+  }
+
+  /// Check if anonymous user can be upgraded
+  bool canUpgradeAccount() {
+    return _currentUser?.isAnonymous ?? false;
+  }
+
+  /// Get list of authentication providers for current user
+  List<String> getAuthProviders() {
+    if (_currentUser == null) return [];
+    
+    return _currentUser!.providerData
+        .map((info) => info.providerId)
+        .toList();
   }
 
   /// Check if current user is anonymous

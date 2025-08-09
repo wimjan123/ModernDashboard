@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/dashboard/dashboard_layout.dart';
+import '../widgets/common/account_menu.dart';
 import '../core/theme/dark_theme.dart';
 import 'settings_screen.dart';
 
@@ -57,6 +58,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.account_circle_rounded),
+            tooltip: 'Account',
+            onPressed: () {
+              _showAccountMenu(context);
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_rounded),
             tooltip: 'Settings',
             onPressed: () {
@@ -100,6 +108,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Show account management menu in a modal bottom sheet
+  void _showAccountMenu(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Account menu content
+                  const AccountMenu(),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

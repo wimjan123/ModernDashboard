@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'weather_repository.dart';
+import '../models/weather.dart';
 import '../services/mock_data_service.dart';
 
 /// Mock Weather Repository that provides realistic weather data for offline mode
@@ -21,7 +22,7 @@ class MockWeatherRepository implements WeatherRepository {
       // Check if weather data exists in cache and is fresh
       if (_weatherCache.containsKey(location)) {
         final cachedData = _weatherCache[location]!;
-        if (cachedData.isFresh) {
+        if (cachedData.isRecent) {
           debugPrint('Returning cached weather for $location');
           return cachedData;
         }
@@ -31,7 +32,7 @@ class MockWeatherRepository implements WeatherRepository {
       final weatherData = await _generateMockWeatherData(location);
       _weatherCache[location] = weatherData;
       
-      debugPrint('Generated new weather data for $location: ${weatherData.temperature}°C, ${weatherData.conditions}');
+      debugPrint('Generated new weather data for $location: ${weatherData.temperature}°C, ${weatherData.description}');
       return weatherData;
     } catch (e) {
       debugPrint('Error getting current weather: $e');
@@ -56,22 +57,20 @@ class MockWeatherRepository implements WeatherRepository {
         final forecastData = WeatherData(
           id: '${location.hashCode}_${forecastDate.day}',
           location: location,
+          latitude: 0.0,
+          longitude: 0.0,
           temperature: (baseWeather.temperature + temperatureVariation).clamp(-20, 50),
-          humidity: _adjustHumidity(baseWeather.humidity, conditionsVariation),
-          conditions: i == 0 ? baseWeather.conditions : conditionsVariation,
-          iconCode: _getIconForCondition(i == 0 ? baseWeather.conditions : conditionsVariation),
-          updatedAt: forecastDate,
-          cachedAt: now,
-          expiresAt: now.add(const Duration(hours: 6)),
-          userId: 'mock_user',
-          windSpeed: baseWeather.windSpeed != null 
-              ? (baseWeather.windSpeed! + (_random.nextDouble() * 4 - 2)).clamp(0, 50)
-              : _random.nextDouble() * 15 + 5,
-          pressure: baseWeather.pressure != null
-              ? (baseWeather.pressure! + (_random.nextDouble() * 20 - 10)).clamp(980, 1040)
-              : _random.nextDouble() * 40 + 1000,
-          visibility: (_random.nextDouble() * 15 + 5).toDouble(), // 5-20 km
-          uvIndex: _getUVIndex(conditionsVariation),
+          feelsLike: (baseWeather.temperature + temperatureVariation + (_random.nextDouble() * 2 - 1)).clamp(-20, 50),
+          humidity: _adjustHumidity(baseWeather.humidity, conditionsVariation).round(),
+          description: i == 0 ? baseWeather.description : conditionsVariation,
+          icon: _getIconForCondition(i == 0 ? baseWeather.description : conditionsVariation),
+          timestamp: forecastDate,
+          windSpeed: baseWeather.windSpeed + (_random.nextDouble() * 4 - 2),
+          windDirection: _random.nextInt(360),
+          pressure: baseWeather.pressure + (_random.nextDouble() * 20 - 10),
+          cloudiness: _random.nextInt(100),
+          visibility: (_random.nextDouble() * 15 + 5).round(),
+          units: 'metric',
         );
         
         forecast.add(forecastData);
@@ -121,18 +120,20 @@ class MockWeatherRepository implements WeatherRepository {
     return WeatherData(
       id: '${location.hashCode}_${now.millisecondsSinceEpoch}',
       location: location,
+      latitude: 0.0,
+      longitude: 0.0,
       temperature: finalTemp,
-      humidity: _random.nextDouble() * 40 + 30, // 30-70%
-      conditions: conditions,
-      iconCode: _getIconForCondition(conditions),
-      updatedAt: now,
-      cachedAt: now,
-      expiresAt: now.add(const Duration(minutes: 10)),
-      userId: 'mock_user',
+      feelsLike: finalTemp + (_random.nextDouble() * 4 - 2),
+      humidity: (_random.nextDouble() * 40 + 30).round(), // 30-70%
+      description: conditions,
+      icon: _getIconForCondition(conditions),
+      timestamp: now,
       windSpeed: _random.nextDouble() * 20 + 2, // 2-22 km/h
+      windDirection: _random.nextInt(360),
       pressure: _random.nextDouble() * 50 + 1000, // 1000-1050 hPa
-      visibility: (_random.nextDouble() * 15 + 5).toDouble(), // 5-20 km
-      uvIndex: _getUVIndex(conditions),
+      cloudiness: _random.nextInt(100),
+      visibility: (_random.nextDouble() * 15 + 5).round(), // 5-20 km
+      units: 'metric',
     );
   }
 
@@ -335,18 +336,205 @@ class MockWeatherRepository implements WeatherRepository {
     return WeatherData(
       id: '${location.hashCode}_fallback',
       location: location,
+      latitude: 0.0,
+      longitude: 0.0,
       temperature: 20.0,
-      humidity: 50.0,
-      conditions: 'Partly Cloudy',
-      iconCode: 'partly-cloudy-day',
-      updatedAt: now,
-      cachedAt: now,
-      expiresAt: now.add(const Duration(minutes: 10)),
-      userId: 'mock_user',
+      feelsLike: 20.0,
+      humidity: 50,
+      description: 'Partly Cloudy',
+      icon: 'partly-cloudy-day',
+      timestamp: now,
       windSpeed: 8.0,
+      windDirection: 180,
       pressure: 1013.25,
-      visibility: 10.0,
-      uvIndex: 5,
+      cloudiness: 30,
+      visibility: 10,
+      units: 'metric',
     );
+  }
+
+  // Additional WeatherRepository interface methods
+  WeatherApiConfig _config = WeatherApiConfig(
+    apiKey: 'mock_api_key',
+    units: 'metric',
+    language: 'en',
+    isEnabled: true,
+    updatedAt: DateTime.now(),
+  );
+  
+  final List<WeatherLocation> _locations = [
+    WeatherLocation(
+      id: 'san_francisco',
+      name: 'San Francisco',
+      country: 'US',
+      state: 'CA',
+      latitude: 37.7749,
+      longitude: -122.4194,
+      isDefault: true,
+      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+    ),
+    WeatherLocation(
+      id: 'new_york',
+      name: 'New York',
+      country: 'US',
+      state: 'NY',
+      latitude: 40.7128,
+      longitude: -74.0060,
+      createdAt: DateTime.now().subtract(const Duration(hours: 6)),
+    ),
+    WeatherLocation(
+      id: 'london',
+      name: 'London',
+      country: 'GB',
+      latitude: 51.5074,
+      longitude: -0.1278,
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    ),
+  ];
+
+  @override
+  Future<WeatherApiConfig> getConfig() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return _config;
+  }
+
+  @override
+  Future<void> updateConfig(WeatherApiConfig config) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    _config = config.copyWith(updatedAt: DateTime.now());
+  }
+
+  @override
+  Future<List<WeatherLocation>> getLocations() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return List.from(_locations);
+  }
+
+  @override
+  Future<void> addLocation(WeatherLocation location) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // If this is the first location or marked as default, make it default
+    final shouldMakeDefault = _locations.isEmpty || location.isDefault;
+    
+    if (shouldMakeDefault) {
+      // Remove default from other locations
+      for (int i = 0; i < _locations.length; i++) {
+        if (_locations[i].isDefault) {
+          _locations[i] = _locations[i].copyWith(isDefault: false);
+        }
+      }
+    }
+    
+    // Generate ID if not provided
+    final locationWithId = location.id.isEmpty
+        ? location.copyWith(
+            id: '${location.latitude}_${location.longitude}_${DateTime.now().millisecondsSinceEpoch}',
+            isDefault: shouldMakeDefault,
+          )
+        : location.copyWith(isDefault: shouldMakeDefault);
+    
+    _locations.add(locationWithId);
+  }
+
+  @override
+  Future<void> removeLocation(String locationId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    final wasDefault = _locations.any((l) => l.id == locationId && l.isDefault);
+    _locations.removeWhere((location) => location.id == locationId);
+    
+    // If we removed the default location, make the first remaining location default
+    if (wasDefault && _locations.isNotEmpty) {
+      _locations[0] = _locations[0].copyWith(isDefault: true);
+    }
+  }
+
+  @override
+  Future<void> setDefaultLocation(String locationId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    for (int i = 0; i < _locations.length; i++) {
+      _locations[i] = _locations[i].copyWith(isDefault: _locations[i].id == locationId);
+    }
+  }
+
+  @override
+  Future<WeatherLocation?> getDefaultLocation() async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    
+    try {
+      return _locations.firstWhere((location) => location.isDefault);
+    } catch (e) {
+      return _locations.isNotEmpty ? _locations.first : null;
+    }
+  }
+
+  @override
+  Future<WeatherData> getCurrentWeatherForLocation(WeatherLocation location) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return getCurrentWeather(location.displayName);
+  }
+
+  @override
+  Future<WeatherData?> getCurrentWeatherForDefault() async {
+    final defaultLocation = await getDefaultLocation();
+    if (defaultLocation == null) return null;
+    
+    return getCurrentWeatherForLocation(defaultLocation);
+  }
+
+  @override
+  Future<List<WeatherLocation>> searchLocations(String query) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    // Filter existing locations based on query
+    final filtered = _locations
+        .where((location) => 
+            location.name.toLowerCase().contains(query.toLowerCase()) ||
+            location.country.toLowerCase().contains(query.toLowerCase()) ||
+            location.state.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+    
+    // Add some mock search results
+    final mockResults = <WeatherLocation>[
+      if (query.toLowerCase().contains('paris'))
+        WeatherLocation(
+          id: 'paris',
+          name: 'Paris',
+          country: 'FR',
+          latitude: 48.8566,
+          longitude: 2.3522,
+          createdAt: DateTime.now(),
+        ),
+      if (query.toLowerCase().contains('tokyo'))
+        WeatherLocation(
+          id: 'tokyo',
+          name: 'Tokyo',
+          country: 'JP',
+          latitude: 35.6762,
+          longitude: 139.6503,
+          createdAt: DateTime.now(),
+        ),
+      if (query.toLowerCase().contains('sydney'))
+        WeatherLocation(
+          id: 'sydney',
+          name: 'Sydney',
+          country: 'AU',
+          latitude: -33.8688,
+          longitude: 151.2093,
+          createdAt: DateTime.now(),
+        ),
+    ];
+    
+    filtered.addAll(mockResults);
+    return filtered.take(10).toList(); // Limit to 10 results
+  }
+
+  @override
+  Future<bool> validateApiKey(String apiKey) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    // For mock implementation, consider non-empty keys valid
+    return apiKey.isNotEmpty && apiKey.length > 10;
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../common/glass_card.dart';
 import '../../core/theme/dark_theme.dart';
+import '../../models/weather.dart';
 import '../../repositories/repository_provider.dart';
 import '../../repositories/weather_repository.dart';
 
@@ -268,21 +269,21 @@ class _WeatherWidgetState extends State<WeatherWidget> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          _getWeatherIcon(_currentWeather!.conditions),
+                          _getWeatherIcon(_currentWeather!.description),
                           size: 40,
                           color: DarkThemeData.warningColor,
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        _currentWeather!.getTemperatureString(),
+                        _currentWeather!.formattedTemperature,
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       Text(
-                        _currentWeather!.conditions,
+                        _currentWeather!.description,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: DarkThemeData.warningColor,
                         ),
@@ -325,13 +326,13 @@ class _WeatherWidgetState extends State<WeatherWidget> {
                       Row(
                         children: [
                           Icon(
-                            _currentWeather!.isFresh ? Icons.access_time_rounded : Icons.cached_rounded,
+                            _currentWeather!.isRecent ? Icons.access_time_rounded : Icons.cached_rounded,
                             size: 14,
                             color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            _currentWeather!.isFresh ? 'Live' : 'Cached',
+                            _currentWeather!.isRecent ? 'Live' : 'Cached',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
