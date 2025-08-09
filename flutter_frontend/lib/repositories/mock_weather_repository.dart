@@ -61,7 +61,7 @@ class MockWeatherRepository implements WeatherRepository {
           longitude: 0.0,
           temperature: (baseWeather.temperature + temperatureVariation).clamp(-20, 50),
           feelsLike: (baseWeather.temperature + temperatureVariation + (_random.nextDouble() * 2 - 1)).clamp(-20, 50),
-          humidity: _adjustHumidity(baseWeather.humidity, conditionsVariation).round(),
+          humidity: _adjustHumidity(baseWeather.humidity.toDouble(), conditionsVariation).round(),
           description: i == 0 ? baseWeather.description : conditionsVariation,
           icon: _getIconForCondition(i == 0 ? baseWeather.description : conditionsVariation),
           timestamp: forecastDate,

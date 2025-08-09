@@ -468,10 +468,13 @@ class _AccountMenuState extends State<AccountMenu> {
       final email = user?['email'] as String?;
       if (email == null) throw Exception('Email not available');
 
-      await _authService.reauthenticateWithEmailAndPassword(email, result['currentPassword']);
+      final currentPassword = result['currentPassword'] as String;
+      final newPassword = result['newPassword'] as String;
+
+      await _authService.reauthenticateWithEmailAndPassword(email, currentPassword);
       
       // Then update password
-      await _authService.updatePassword(result['newPassword']);
+      await _authService.updatePassword(newPassword);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
