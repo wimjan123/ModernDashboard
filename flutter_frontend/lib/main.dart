@@ -11,7 +11,6 @@ import 'screens/initialization_progress_screen.dart';
 import 'firebase/firebase_service.dart';
 import 'firebase/migration_service.dart';
 import 'firebase/auth_service.dart';
-import 'firebase/settings_service.dart';
 import 'repositories/repository_provider.dart';
 import 'core/exceptions/initialization_exception.dart';
 import 'core/models/initialization_status.dart';

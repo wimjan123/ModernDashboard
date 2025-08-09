@@ -11,7 +11,6 @@ class AuthService {
   AuthService._internal();
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
-  FirebaseService get _firebaseService => FirebaseService.instance;
 
   /// Get current user
   User? get currentUser => _auth.currentUser;
@@ -129,33 +128,34 @@ class AuthService {
       'strength': 'weak',
     };
 
+    final errors = validation['errors'] as List<String>;
+
     if (password.isEmpty) {
-      validation['errors'].add('Password cannot be empty');
+      errors.add('Password cannot be empty');
       return validation;
     }
 
     if (password.length < 8) {
-      validation['errors'].add('Password must be at least 8 characters long');
+      errors.add('Password must be at least 8 characters long');
     }
 
     if (!password.contains(RegExp(r'[A-Z]'))) {
-      validation['errors'].add('Password must contain at least one uppercase letter');
+      errors.add('Password must contain at least one uppercase letter');
     }
 
     if (!password.contains(RegExp(r'[a-z]'))) {
-      validation['errors'].add('Password must contain at least one lowercase letter');
+      errors.add('Password must contain at least one lowercase letter');
     }
 
     if (!password.contains(RegExp(r'[0-9]'))) {
-      validation['errors'].add('Password must contain at least one number');
+      errors.add('Password must contain at least one number');
     }
 
     if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
-      validation['errors'].add('Password must contain at least one special character');
+      errors.add('Password must contain at least one special character');
     }
 
     // Determine strength
-    final errors = validation['errors'] as List<String>;
     if (errors.isEmpty) {
       validation['isValid'] = true;
       validation['strength'] = 'strong';

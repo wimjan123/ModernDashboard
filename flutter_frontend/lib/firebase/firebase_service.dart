@@ -12,6 +12,7 @@ import '../core/models/initialization_status.dart';
 import '../core/services/backoff_strategy.dart';
 import 'firebase_config_validator.dart';
 import 'remote_config_service.dart';
+import 'settings_service.dart';
 
 class FirebaseService {
   static FirebaseService? _instance;
@@ -572,20 +573,20 @@ class FirebaseService {
   Future<UserCredential> upgradeAnonymousAccount(String email, String password) async {
     try {
       // First preserve settings before account upgrade
-      await _settingsService?.preserveAnonymousSettings();
+      await SettingsService.instance.preserveAnonymousSettings();
       
       // Link the account
       final linkedCredential = await linkAnonymousAccount(email, password);
       
       // Restore preserved settings after successful linking
-      await _settingsService?.restorePreservedSettings();
+      await SettingsService.instance.restorePreservedSettings();
       
       debugPrint('Successfully upgraded anonymous account via FirebaseService: $email');
       return linkedCredential;
     } catch (e) {
       debugPrint('FirebaseService account upgrade error: $e');
       // Clean up any preserved settings on failure
-      await _settingsService?.cleanupPreservedSettings();
+      SettingsService.instance.cleanupPreservedSettings();
       rethrow;
     }
   }

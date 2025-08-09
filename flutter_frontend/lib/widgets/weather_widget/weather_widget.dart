@@ -4,7 +4,6 @@ import '../common/glass_card.dart';
 import '../../core/theme/dark_theme.dart';
 import '../../models/weather.dart';
 import '../../repositories/repository_provider.dart';
-import '../../repositories/weather_repository.dart';
 
 class WeatherWidget extends StatefulWidget {
   const WeatherWidget({super.key});

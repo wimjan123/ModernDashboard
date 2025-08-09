@@ -206,5 +206,5 @@ class RemoteConfigService {
   
   /// Get the fetch status for debugging
   RemoteConfigFetchStatus get lastFetchStatus => 
-      _remoteConfig?.lastFetchStatus ?? RemoteConfigFetchStatus.notFetchedYet;
+      _remoteConfig?.lastFetchStatus ?? RemoteConfigFetchStatus.noFetchYet;
 }
