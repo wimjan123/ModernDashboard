@@ -40,13 +40,23 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
   }
   
   void _startInitialization() {
-    // Start Firebase initialization (non-blocking)
-    FirebaseService.instance.initializeFirebase().then((_) {
-      // Initialize repositories after Firebase
-      return RepositoryProvider.instance.initialize();
-    }).catchError((error) {
-      debugPrint('Initialization failed: $error');
-    });
+    // For web platform, skip Firebase and go directly to offline mode for demo
+    if (kIsWeb) {
+      debugPrint('Web platform detected - starting in offline mode');
+      RepositoryProvider.instance.switchToOfflineMode().then((_) {
+        debugPrint('Offline mode initialized for web');
+      }).catchError((error) {
+        debugPrint('Offline mode initialization failed: $error');
+      });
+    } else {
+      // Start Firebase initialization (non-blocking) for native platforms
+      FirebaseService.instance.initializeFirebase().then((_) {
+        // Initialize repositories after Firebase
+        return RepositoryProvider.instance.initialize();
+      }).catchError((error) {
+        debugPrint('Initialization failed: $error');
+      });
+    }
   }
   
   @override
@@ -60,51 +70,62 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
       child: MaterialApp(
         title: 'Modern Dashboard',
         theme: DarkThemeData.theme,
-        home: StreamBuilder<InitializationStatus>(
-          stream: FirebaseService.instance.initializationStatusStream,
-          builder: (context, snapshot) {
-            final status = snapshot.data;
-            
-            if (status == null || status.isInProgress) {
-              return InitializationProgressScreen(
-                status: status,
-                onCancel: () {
-                  FirebaseService.instance.cancelInitialization();
-                },
-                onSkipToOffline: () async {
-                  await RepositoryProvider.instance.switchToOfflineMode();
-                },
-              );
-            }
-            
-            if (status.phase == InitializationPhase.error) {
-              return InitializationErrorScreen(
-                error: status.error,
-                configValidationFailed: status.error?.code == 'invalid-config' ||
-                    status.error?.code == 'unsupported-platform',
-                offlineModeActive: RepositoryProvider.instance.offlineModeActive,
-              );
-            }
-            
-            // Check for migration needs
-            return FutureBuilder<bool>(
-              future: _checkMigrationNeeded(),
-              builder: (context, migrationSnapshot) {
-                if (migrationSnapshot.connectionState == ConnectionState.waiting) {
+        home: kIsWeb 
+          ? Consumer<RepositoryProvider>(
+              builder: (context, repositoryProvider, child) {
+                if (!repositoryProvider.isInitialized) {
                   return const InitializationProgressScreen(
                     status: null, // Will show default loading
                   );
                 }
-                
-                if (migrationSnapshot.data == true) {
-                  return const MigrationScreen();
-                }
-                
                 return const DashboardScreen();
               },
-            );
-          },
-        ),
+            )
+          : StreamBuilder<InitializationStatus>(
+              stream: FirebaseService.instance.initializationStatusStream,
+              builder: (context, snapshot) {
+                final status = snapshot.data;
+                
+                if (status == null || status.isInProgress) {
+                  return InitializationProgressScreen(
+                    status: status,
+                    onCancel: () {
+                      FirebaseService.instance.cancelInitialization();
+                    },
+                    onSkipToOffline: () async {
+                      await RepositoryProvider.instance.switchToOfflineMode();
+                    },
+                  );
+                }
+                
+                if (status.phase == InitializationPhase.error) {
+                  return InitializationErrorScreen(
+                    error: status.error,
+                    configValidationFailed: status.error?.code == 'invalid-config' ||
+                        status.error?.code == 'unsupported-platform',
+                    offlineModeActive: RepositoryProvider.instance.offlineModeActive,
+                  );
+                }
+                
+                // Check for migration needs
+                return FutureBuilder<bool>(
+                  future: _checkMigrationNeeded(),
+                  builder: (context, migrationSnapshot) {
+                    if (migrationSnapshot.connectionState == ConnectionState.waiting) {
+                      return const InitializationProgressScreen(
+                        status: null, // Will show default loading
+                      );
+                    }
+                    
+                    if (migrationSnapshot.data == true) {
+                      return const MigrationScreen();
+                    }
+                    
+                    return const DashboardScreen();
+                  },
+                );
+              },
+            ),
         debugShowCheckedModeBanner: false,
       ),
     );
