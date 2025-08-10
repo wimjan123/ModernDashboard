@@ -27,6 +27,7 @@ Future<void> main() async {
     runApp(const ModernDashboardApp(startInitialization: false));
   } else {
     // Initialize Firebase for both web and native platforms
+    // For web, we'll handle the Firebase initialization more gracefully
     runApp(const ModernDashboardApp(startInitialization: true));
   }
 }
@@ -54,11 +55,21 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
   
   void _startInitialization() {
     // Start Firebase initialization (non-blocking)
+    debugPrint('Starting Firebase initialization...');
+    
     FirebaseService.instance.initializeFirebase().then((_) {
+      debugPrint('Firebase initialization completed, initializing repositories...');
       // Initialize repositories after Firebase
       return RepositoryProvider.instance.initialize();
+    }).then((_) {
+      debugPrint('All initialization completed successfully');
     }).catchError((error) {
       debugPrint('Initialization failed: $error');
+      // For web platform, if Firebase fails, fallback to offline mode
+      if (kIsWeb) {
+        debugPrint('Web platform: Falling back to offline mode due to Firebase error');
+        RepositoryProvider.instance.switchToOfflineMode();
+      }
     });
   }
   
@@ -77,10 +88,12 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
           ? StreamBuilder<InitializationStatus>(
               stream: FirebaseService.instance.initializationStatusStream,
               builder: (context, snapshot) {
+                debugPrint('StreamBuilder snapshot: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, data: ${snapshot.data}');
+                
                 final status = snapshot.data;
                 
-                
-                if (status == null || status.isInProgress) {
+                // Handle connection states and null status
+                if (status == null || (snapshot.hasData && status.isInProgress)) {
                   return InitializationProgressScreen(
                     status: status,
                     onCancel: () {
