@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mcp_toolkit/mcp_toolkit.dart';
 import 'core/theme/dark_theme.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/migration_screen.dart';
@@ -16,20 +17,33 @@ import 'core/exceptions/initialization_exception.dart';
 import 'core/models/initialization_status.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      
+      // Initialize MCP Toolkit
+      MCPToolkitBinding.instance
+        ..initialize()
+        ..initializeFlutterToolkit();
 
-  // Check if we're using mock data (for development/testing)
-  const bool useMockData = bool.fromEnvironment('USE_MOCK_DATA', defaultValue: false);
-  
-  if (useMockData) {
-    // For mock data, skip Firebase initialization and go straight to offline mode
-    await RepositoryProvider.instance.switchToOfflineMode();
-    runApp(const ModernDashboardApp(startInitialization: false));
-  } else {
-    // Initialize Firebase for both web and native platforms
-    // For web, we'll handle the Firebase initialization more gracefully
-    runApp(const ModernDashboardApp(startInitialization: true));
-  }
+      // Check if we're using mock data (for development/testing)
+      const bool useMockData = bool.fromEnvironment('USE_MOCK_DATA', defaultValue: false);
+      
+      if (useMockData) {
+        // For mock data, skip Firebase initialization and go straight to offline mode
+        await RepositoryProvider.instance.switchToOfflineMode();
+        runApp(const ModernDashboardApp(startInitialization: false));
+      } else {
+        // Initialize Firebase for both web and native platforms
+        // For web, we'll handle the Firebase initialization more gracefully
+        runApp(const ModernDashboardApp(startInitialization: true));
+      }
+    },
+    (error, stack) {
+      // Handle zone errors for MCP server
+      MCPToolkitBinding.instance.handleZoneError(error, stack);
+    },
+  );
 }
 
 class ModernDashboardApp extends StatefulWidget {

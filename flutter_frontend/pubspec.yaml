@@ -30,6 +30,7 @@ dependencies:
   connectivity_plus: ^5.0.0
   logger: ^2.0.0
   xml: ^6.3.0
+  mcp_toolkit: ^0.2.3
 
 dev_dependencies:
   flutter_test:
