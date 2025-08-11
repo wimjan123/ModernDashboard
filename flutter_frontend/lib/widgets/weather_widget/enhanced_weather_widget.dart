@@ -486,7 +486,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (_currentWeather!.windSpeed != null)
+                    if (_currentWeather!.windSpeed > 0)
                       Text(
                         'Feels like ${_currentWeather!.formattedFeelsLike}',
                         style: TextStyle(
@@ -511,32 +511,32 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                 '${_currentWeather!.humidity.round()}%',
               ),
               const SizedBox(width: 16),
-              if (_currentWeather!.windSpeed != null)
+              if (_currentWeather!.windSpeed > 0)
                 _buildWeatherDetail(
                   Icons.air_rounded,
                   'Wind',
-                  '${_currentWeather!.windSpeed!.toStringAsFixed(1)} ${_config?.units == 'imperial' ? 'mph' : 'm/s'}',
+                  '${_currentWeather!.windSpeed.toStringAsFixed(1)} ${_config?.units == 'imperial' ? 'mph' : 'm/s'}',
                 ),
             ],
           ),
           
-          if (_currentWeather!.pressure != null || _currentWeather!.visibility != null) ...[
+          if (_currentWeather!.pressure > 0 || _currentWeather!.visibility > 0) ...[
             const SizedBox(height: 16),
             Row(
               children: [
-                if (_currentWeather!.pressure != null)
+                if (_currentWeather!.pressure > 0)
                   _buildWeatherDetail(
                     Icons.speed_rounded,
                     'Pressure',
-                    '${_currentWeather!.pressure!.round()} hPa',
+                    '${_currentWeather!.pressure.round()} hPa',
                   ),
                 if (_currentWeather!.pressure != null && _currentWeather!.visibility != null)
                   const SizedBox(width: 16),
-                if (_currentWeather!.visibility != null)
+                if (_currentWeather!.visibility > 0)
                   _buildWeatherDetail(
                     Icons.visibility_rounded,
                     'Visibility',
-                    '${(_currentWeather!.visibility! / 1000).toStringAsFixed(1)} km',
+                    '${(_currentWeather!.visibility / 1000).toStringAsFixed(1)} km',
                   ),
               ],
             ),

@@ -26,7 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Theme.of(context).colorScheme.background.withValues(alpha: 0.9),
+                Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
                 Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
               ],
             ),
@@ -86,8 +86,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             radius: 1.5,
             colors: [
               DarkThemeData.accentColor.withValues(alpha: 0.05),
-              Theme.of(context).colorScheme.background,
-              Theme.of(context).colorScheme.background,
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surface,
             ],
             stops: const [0.0, 0.3, 1.0],
           ),

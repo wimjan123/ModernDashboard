@@ -1,5 +1,4 @@
 import '../models/weather.dart';
-import '../services/weather_service.dart';
 
 abstract class WeatherRepository {
   /// Get current weather for a location

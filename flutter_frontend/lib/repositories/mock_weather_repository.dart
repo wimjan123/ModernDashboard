@@ -9,7 +9,6 @@ import '../services/mock_data_service.dart';
 class MockWeatherRepository implements WeatherRepository {
   final MockDataService _mockDataService = MockDataService();
   final Map<String, WeatherData> _weatherCache = {};
-  String _defaultLocation = 'San Francisco, CA';
   final Random _random = Random();
 
   MockWeatherRepository() {
@@ -87,7 +86,6 @@ class MockWeatherRepository implements WeatherRepository {
   @override
   Future<void> updateLocation(String location) async {
     try {
-      _defaultLocation = location;
       // Pre-generate weather data for the new location
       await getCurrentWeather(location);
       debugPrint('Updated default location to: $location');
@@ -309,26 +307,6 @@ class MockWeatherRepository implements WeatherRepository {
     }
   }
 
-  /// Get UV index based on conditions
-  int _getUVIndex(String conditions) {
-    switch (conditions) {
-      case 'Clear':
-        return _random.nextInt(4) + 7; // 7-10 (high)
-      case 'Partly Cloudy':
-        return _random.nextInt(3) + 5; // 5-7 (moderate to high)
-      case 'Cloudy':
-      case 'Overcast':
-        return _random.nextInt(3) + 2; // 2-4 (low to moderate)
-      case 'Rain':
-      case 'Heavy Rain':
-      case 'Thunderstorms':
-      case 'Snow':
-      case 'Fog':
-        return _random.nextInt(2) + 1; // 1-2 (low)
-      default:
-        return _random.nextInt(5) + 3; // 3-7 (moderate)
-    }
-  }
 
   /// Create fallback weather data when generation fails
   WeatherData _createFallbackWeatherData(String location) {

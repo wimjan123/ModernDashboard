@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../common/glass_card.dart';
 import '../../core/theme/dark_theme.dart';
 import '../../repositories/repository_provider.dart';
 import '../../models/rss_feed.dart';

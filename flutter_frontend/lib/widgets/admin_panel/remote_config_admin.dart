@@ -34,7 +34,6 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
 
     try {
       final config = RemoteConfigService.instance.getAllConfigValues();
-      final weatherConfig = RemoteConfigService.instance.getWeatherConfig();
       
       setState(() {
         _currentConfig = config;

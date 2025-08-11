@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../firebase/firebase_service.dart';
 import '../models/video_stream.dart';
-import '../services/video_stream_service.dart';
 
 abstract class VideoStreamRepository {
   Future<List<VideoStream>> getStreams();

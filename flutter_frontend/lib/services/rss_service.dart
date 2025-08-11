@@ -157,14 +157,6 @@ class RSSService {
     if (dateString.isEmpty) return DateTime.now();
 
     try {
-      // Try different date formats
-      final formats = [
-        // RFC 2822 format (common in RSS)
-        RegExp(r'\w+,\s+(\d{1,2})\s+(\w+)\s+(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})'),
-        // ISO 8601 format
-        RegExp(r'(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})'),
-      ];
-
       // Try parsing with DateTime.parse first
       try {
         return DateTime.parse(dateString);

@@ -172,6 +172,12 @@ class WeatherData {
   /// Backward compatibility alias for isRecent
   bool get isFresh => isRecent;
 
+  /// Backward compatibility getter for iconCode
+  String get iconCode => icon;
+
+  /// Backward compatibility getter for updatedAt
+  DateTime get updatedAt => timestamp;
+
   @override
   String toString() {
     return 'WeatherData(location: $location, temperature: $formattedTemperature, description: $description)';

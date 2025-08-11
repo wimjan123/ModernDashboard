@@ -318,18 +318,6 @@ class CloudWeatherRepository implements WeatherRepository {
     }
   }
 
-  /// Get user's default location (legacy method)
-  Future<String?> _getDefaultLocationString() async {
-    try {
-      final doc = await _userPreferencesDoc.get();
-      if (!doc.exists) return null;
-      
-      final data = doc.data() as Map<String, dynamic>;
-      return data['weather_location'] as String?;
-    } catch (e) {
-      return null;
-    }
-  }
 
   // New interface methods - now using Firebase Remote Config
   @override

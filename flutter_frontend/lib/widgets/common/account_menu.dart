@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../firebase/auth_service.dart';
-import '../../firebase/firebase_service.dart';
 import '../../firebase/settings_service.dart';
 import '../../screens/login_screen.dart';
 import 'glass_card.dart';
@@ -16,7 +15,6 @@ class AccountMenu extends StatefulWidget {
 
 class _AccountMenuState extends State<AccountMenu> {
   final AuthService _authService = AuthService.instance;
-  final SettingsService _settingsService = SettingsService.instance;
   bool _isLoading = false;
   String? _syncStatus;
 
