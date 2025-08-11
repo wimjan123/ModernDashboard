@@ -4,6 +4,10 @@ import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import '../firebase/firebase_service.dart';
+import '../core/exceptions/feed_validation_exception.dart';
+import '../core/services/cors_proxy_service.dart';
+import '../core/utils/url_validator.dart';
+import '../services/rss_service.dart';
 import 'news_repository.dart';
 
 class CloudNewsRepository implements NewsRepository {
@@ -54,11 +58,14 @@ class CloudNewsRepository implements NewsRepository {
   Future<void> addFeed(String feedUrl) async {
     try {
       if (feedUrl.trim().isEmpty) {
-        throw Exception('Feed URL cannot be empty');
+        throw FeedValidationException.invalidUrl(feedUrl, suggestion: 'Please enter a valid RSS feed URL');
       }
       
       final userId = _firebaseService.getUserId();
       if (userId == null) throw Exception('User not authenticated');
+      
+      // Validate the feed URL using enhanced validation
+      await RSSService.validateFeedUrl(feedUrl);
       
       // Check if feed already exists
       final existingFeeds = await _newsFeedsCollection
@@ -66,10 +73,14 @@ class CloudNewsRepository implements NewsRepository {
           .get();
       
       if (existingFeeds.docs.isNotEmpty) {
-        throw Exception('Feed already added');
+        throw FeedValidationException(
+          'duplicate_feed',
+          'Feed already exists',
+          suggestion: 'This RSS feed has already been added to your collection',
+        );
       }
       
-      // Try to fetch the feed to validate it
+      // Try to fetch the feed to validate it and get name
       final feedName = await _validateAndGetFeedName(feedUrl);
       
       final feed = NewsFeed(
@@ -84,8 +95,10 @@ class CloudNewsRepository implements NewsRepository {
       
       // Fetch articles from the new feed
       await _fetchFeedArticles(feedUrl, feedName);
+    } on FeedValidationException {
+      rethrow;
     } catch (e) {
-      throw Exception('Failed to add feed: $e');
+      throw FeedValidationException.networkError(feedUrl, details: e.toString());
     }
   }
 
@@ -213,42 +226,138 @@ class CloudNewsRepository implements NewsRepository {
   /// Validate feed URL and get feed name
   Future<String> _validateAndGetFeedName(String feedUrl) async {
     try {
-      final response = await http.get(Uri.parse(feedUrl));
+      String content;
       
-      if (response.statusCode != 200) {
-        throw Exception('Failed to fetch feed: ${response.statusCode}');
+      // Use appropriate fetching method based on platform
+      if (kIsWeb) {
+        try {
+          final corsProxy = CorsProxyService.instance;
+          content = await corsProxy.fetchWithProxy(feedUrl);
+        } catch (e) {
+          // If CORS proxy fails, try direct request (might work for some feeds)
+          final response = await http.get(Uri.parse(feedUrl));
+          
+          if (response.statusCode != 200) {
+            throw FeedValidationException.serverError(feedUrl, response.statusCode);
+          }
+          
+          content = response.body;
+        }
+      } else {
+        // Direct fetch for non-web platforms
+        final response = await http.get(Uri.parse(feedUrl));
+        
+        if (response.statusCode != 200) {
+          throw FeedValidationException.serverError(feedUrl, response.statusCode);
+        }
+        
+        content = response.body;
       }
       
-      final content = response.body;
-      
-      // Simple RSS/Atom validation and name extraction
-      if (!content.contains('<rss') && !content.contains('<feed')) {
-        throw Exception('URL does not appear to be a valid RSS/Atom feed');
+      // Validate RSS/Atom content
+      final lowerContent = content.toLowerCase();
+      if (!lowerContent.contains('<rss') && 
+          !lowerContent.contains('<feed') && 
+          !lowerContent.contains('<atom') &&
+          !lowerContent.contains('<?xml')) {
+        throw FeedValidationException.notRssFeed(feedUrl);
       }
       
-      // Extract feed title
-      final titleMatch = RegExp(r'<title[^>]*>([^<]+)</title>').firstMatch(content);
-      final feedName = titleMatch?.group(1)?.trim() ?? Uri.parse(feedUrl).host;
+      // Extract feed title with better parsing
+      String? feedName;
       
-      return feedName;
+      // Try channel/feed title first
+      final channelTitleMatch = RegExp(r'<channel[^>]*>.*?<title[^>]*>([^<]+)</title>', 
+          dotAll: true, caseSensitive: false).firstMatch(content);
+      if (channelTitleMatch != null) {
+        feedName = channelTitleMatch.group(1)?.trim();
+      }
+      
+      // Try direct title if no channel title found
+      if (feedName == null || feedName.isEmpty) {
+        final titleMatch = RegExp(r'<title[^>]*>([^<]+)</title>', 
+            caseSensitive: false).firstMatch(content);
+        feedName = titleMatch?.group(1)?.trim();
+      }
+      
+      // Clean up the feed name
+      if (feedName != null) {
+        feedName = feedName.replaceAll(RegExp(r'\s+'), ' ').trim();
+        // Remove HTML entities
+        feedName = feedName
+            .replaceAll('&amp;', '&')
+            .replaceAll('&lt;', '<')
+            .replaceAll('&gt;', '>')
+            .replaceAll('&quot;', '"')
+            .replaceAll('&#39;', "'");
+      }
+      
+      // Fallback to domain name
+      return feedName?.isNotEmpty == true ? feedName! : Uri.parse(feedUrl).host;
+      
+    } on FeedValidationException {
+      rethrow;
     } catch (e) {
-      throw Exception('Invalid feed URL: $e');
+      throw FeedValidationException.networkError(feedUrl, details: e.toString());
     }
   }
 
   /// Fetch articles from a specific feed
   Future<void> _fetchFeedArticles(String feedUrl, String feedName) async {
     try {
-      final response = await http.get(Uri.parse(feedUrl));
+      String content;
       
-      if (response.statusCode != 200) {
-        throw Exception('Failed to fetch feed: ${response.statusCode}');
+      // Use appropriate fetching method based on platform
+      if (kIsWeb) {
+        try {
+          final corsProxy = CorsProxyService.instance;
+          content = await corsProxy.fetchWithProxy(feedUrl);
+        } catch (e) {
+          debugPrint('CloudNewsRepository: CORS proxy failed for $feedUrl: $e');
+          // Don't throw error, just skip fetching articles for this feed
+          return;
+        }
+      } else {
+        // Direct fetch for non-web platforms with retry logic
+        http.Response response;
+        int retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            response = await http.get(Uri.parse(feedUrl))
+                .timeout(const Duration(seconds: 10));
+            
+            if (response.statusCode == 200) {
+              content = response.body;
+              break;
+            } else if (response.statusCode >= 500 && retryCount < maxRetries - 1) {
+              // Server error, retry after delay
+              await Future.delayed(Duration(seconds: (retryCount + 1) * 2));
+              retryCount++;
+              continue;
+            } else {
+              throw FeedValidationException.serverError(feedUrl, response.statusCode);
+            }
+          } catch (e) {
+            if (retryCount >= maxRetries - 1) {
+              if (e is FeedValidationException) rethrow;
+              throw FeedValidationException.networkError(feedUrl, details: e.toString());
+            }
+            retryCount++;
+            await Future.delayed(Duration(seconds: retryCount * 2));
+          }
+        }
       }
       
-      final articles = _parseFeedContent(response.body, feedUrl, feedName);
+      final articles = _parseFeedContent(content, feedUrl, feedName);
       await _cacheArticles(articles);
+    } on FeedValidationException catch (e) {
+      debugPrint('CloudNewsRepository: Feed validation error for $feedUrl: $e');
+      // Don't rethrow, just log the error - other feeds should still work
     } catch (e) {
-      throw Exception('Failed to fetch articles from $feedUrl: $e');
+      debugPrint('CloudNewsRepository: Error fetching articles from $feedUrl: $e');
+      // Don't rethrow, just log the error - other feeds should still work
     }
   }
 

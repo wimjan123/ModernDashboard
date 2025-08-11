@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/theme/dark_theme.dart';
 
 enum AppLogoMode {
   iconOnly,
@@ -42,13 +41,13 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final isDark = brightness == Brightness.dark;
-    
+
     // Determine colors based on variant and theme
     final resolvedIconColor = _resolveIconColor(context, isDark);
     final resolvedTextColor = _resolveTextColor(context, isDark);
-    
+
     Widget content;
-    
+
     switch (mode) {
       case AppLogoMode.iconOnly:
         content = _buildIconOnly(resolvedIconColor);
@@ -57,14 +56,15 @@ class AppLogo extends StatelessWidget {
         content = _buildTextOnly(context, resolvedTextColor);
         break;
       case AppLogoMode.iconAndText:
-        content = _buildIconAndText(context, resolvedIconColor, resolvedTextColor);
+        content =
+            _buildIconAndText(context, resolvedIconColor, resolvedTextColor);
         break;
     }
-    
+
     if (padding != null) {
       content = Padding(padding: padding!, child: content);
     }
-    
+
     // Apply animations if enabled
     if (enableAnimations) {
       content = content
@@ -72,7 +72,7 @@ class AppLogo extends StatelessWidget {
           .fadeIn(duration: 600.ms, curve: Curves.easeOut)
           .scale(begin: const Offset(0.9, 0.9), curve: Curves.elasticOut);
     }
-    
+
     if (enableShimmer) {
       content = content
           .animate(onPlay: (controller) => controller.repeat(reverse: true))
@@ -81,59 +81,54 @@ class AppLogo extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.2),
           );
     }
-    
+
     return content;
   }
-  
+
   Color _resolveIconColor(BuildContext context, bool isDark) {
     if (iconColor != null) return iconColor!;
-    
+
     switch (variant) {
       case AppLogoVariant.light:
         return Colors.white;
       case AppLogoVariant.dark:
         return const Color(0xFF0F0F23); // DarkThemeData._backgroundDark
       case AppLogoVariant.auto:
-        return isDark 
-            ? Colors.white 
-            : const Color(0xFF0F0F23);
+        return isDark ? Colors.white : const Color(0xFF0F0F23);
     }
   }
-  
+
   Color _resolveTextColor(BuildContext context, bool isDark) {
     if (textColor != null) return textColor!;
-    
+
     switch (variant) {
       case AppLogoVariant.light:
         return const Color(0xFFF8FAFC); // DarkThemeData._textPrimary
       case AppLogoVariant.dark:
         return const Color(0xFF0F0F23); // DarkThemeData._backgroundDark
       case AppLogoVariant.auto:
-        return isDark 
-            ? const Color(0xFFF8FAFC)
-            : const Color(0xFF0F0F23);
+        return isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F0F23);
     }
   }
-  
+
   Widget _buildIconOnly(Color color) {
     return _LogoContainer(
       size: size,
-      child: Icon(
-        Icons.dashboard_rounded,
-        size: size * 0.55,
-        color: color,
+      child: Builder(
+        builder: (context) => _buildLogoImage(context),
       ),
     );
   }
-  
+
   Widget _buildTextOnly(BuildContext context, Color color) {
     return Text(
       customText ?? 'Modern Dashboard',
       style: _getTextStyle(context, color),
     );
   }
-  
-  Widget _buildIconAndText(BuildContext context, Color iconColor, Color textColor) {
+
+  Widget _buildIconAndText(
+      BuildContext context, Color iconColor, Color textColor) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -149,17 +144,53 @@ class AppLogo extends StatelessWidget {
       ],
     );
   }
-  
+
   TextStyle _getTextStyle(BuildContext context, Color color) {
     return Theme.of(context).textTheme.headlineMedium?.copyWith(
-      color: color,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.5,
-    ) ?? TextStyle(
-      color: color,
-      fontSize: size * 0.3,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.5,
+              color: color,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ) ??
+        TextStyle(
+          color: color,
+          fontSize: size * 0.3,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        );
+  }
+
+  Widget _buildLogoImage(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
+    String logoPath;
+    switch (variant) {
+      case AppLogoVariant.light:
+        logoPath = 'assets/images/logo_light.png';
+        break;
+      case AppLogoVariant.dark:
+        logoPath = 'assets/images/logo_dark.png';
+        break;
+      case AppLogoVariant.auto:
+        logoPath = isDark
+            ? 'assets/images/logo_light.png'
+            : 'assets/images/logo_dark.png';
+        break;
+    }
+
+    return Image.asset(
+      logoPath,
+      width: size * 0.6,
+      height: size * 0.6,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        // Fallback to icon if image fails to load
+        return Icon(
+          Icons.dashboard_rounded,
+          size: size * 0.55,
+          color: _resolveIconColor(context, isDark),
+        );
+      },
     );
   }
 }
@@ -167,12 +198,12 @@ class AppLogo extends StatelessWidget {
 class _LogoContainer extends StatelessWidget {
   final double size;
   final Widget child;
-  
+
   const _LogoContainer({
     required this.size,
     required this.child,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -210,11 +241,11 @@ class AppLogoLarge extends AppLogo {
     bool enableAnimations = true,
     bool enableShimmer = false,
   }) : super(
-    size: 120.0,
-    mode: mode,
-    enableAnimations: enableAnimations,
-    enableShimmer: enableShimmer,
-  );
+          size: 120.0,
+          mode: mode,
+          enableAnimations: enableAnimations,
+          enableShimmer: enableShimmer,
+        );
 }
 
 class AppLogoMedium extends AppLogo {
@@ -223,10 +254,10 @@ class AppLogoMedium extends AppLogo {
     AppLogoMode mode = AppLogoMode.iconOnly,
     bool enableAnimations = false,
   }) : super(
-    size: 64.0,
-    mode: mode,
-    enableAnimations: enableAnimations,
-  );
+          size: 64.0,
+          mode: mode,
+          enableAnimations: enableAnimations,
+        );
 }
 
 class AppLogoSmall extends AppLogo {
@@ -234,7 +265,7 @@ class AppLogoSmall extends AppLogo {
     super.key,
     AppLogoMode mode = AppLogoMode.iconOnly,
   }) : super(
-    size: 32.0,
-    mode: mode,
-  );
+          size: 32.0,
+          mode: mode,
+        );
 }

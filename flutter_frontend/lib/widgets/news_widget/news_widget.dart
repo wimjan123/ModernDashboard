@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../common/glass_card.dart';
 import '../../core/theme/dark_theme.dart';
+import '../../core/exceptions/feed_validation_exception.dart';
+import '../../core/services/cors_proxy_service.dart';
 import '../../repositories/repository_provider.dart';
 import '../../repositories/news_repository.dart';
 
@@ -19,6 +21,7 @@ class _NewsWidgetState extends State<NewsWidget> {
   List<NewsItem> _newsItems = [];
   bool _isLoadingNews = false;
   bool _isRefreshing = false;
+  FeedValidationException? _lastValidationError;
 
   @override
   void dispose() {
@@ -88,20 +91,85 @@ class _NewsWidgetState extends State<NewsWidget> {
     final feedUrl = _feedController.text.trim();
     if (feedUrl.isEmpty) return;
 
+    setState(() {
+      _error = null;
+    });
+
     try {
       final newsRepository = Provider.of<RepositoryProvider>(context, listen: false).newsRepository;
       await newsRepository.addFeed(feedUrl);
       _feedController.clear();
       
+      // Refresh news after adding feed
+      await _loadNews();
+    } on FeedValidationException catch (e) {
       setState(() {
-        _error = null;
+        _lastValidationError = e;
+        _error = _getFriendlyErrorMessage(e);
+      });
+    } catch (e) {
+      setState(() {
+        _lastValidationError = null;
+        _error = 'Failed to add feed: ${e.toString()}';
+      });
+    }
+  }
+
+  /// Convert FeedValidationException to user-friendly error message
+  String _getFriendlyErrorMessage(FeedValidationException e) {
+    switch (e.code) {
+      case 'invalid_url':
+        return '${e.userMessage}${e.suggestion != null ? '\n💡 ${e.suggestion}' : ''}';
+      case 'cors_blocked':
+        return '${e.userMessage}\n💡 This is a browser limitation. You can try using a CORS proxy service.';
+      case 'not_rss_feed':
+        return '${e.userMessage}\n💡 ${e.suggestion ?? 'Please verify the URL points to an RSS or Atom feed.'}';
+      case 'network_error':
+        return '${e.userMessage}\n💡 Check your internet connection and try again.';
+      case 'timeout':
+        return '${e.userMessage}\n💡 The server is taking too long to respond. Try again later.';
+      case 'server_error':
+        return '${e.userMessage}\n💡 ${e.suggestion ?? 'The server may be temporarily unavailable.'}';
+      case 'duplicate_feed':
+        return '${e.userMessage}\n💡 ${e.suggestion ?? 'This RSS feed is already in your collection.'}';
+      default:
+        return e.userMessage;
+    }
+  }
+
+  /// Try adding feed using CORS proxy (for web platform)
+  Future<void> _tryWithProxy() async {
+    final feedUrl = _feedController.text.trim();
+    if (feedUrl.isEmpty) return;
+
+    setState(() {
+      _error = null;
+    });
+
+    try {
+      final corsProxy = CorsProxyService.instance;
+      await corsProxy.forceProxyValidation(feedUrl);
+      
+      // If validation succeeds, add the feed
+      final newsRepository = Provider.of<RepositoryProvider>(context, listen: false).newsRepository;
+      await newsRepository.addFeed(feedUrl);
+      _feedController.clear();
+      
+      setState(() {
+        _lastValidationError = null;
       });
       
       // Refresh news after adding feed
       await _loadNews();
+    } on FeedValidationException catch (e) {
+      setState(() {
+        _lastValidationError = e;
+        _error = 'Proxy validation failed: ${_getFriendlyErrorMessage(e)}';
+      });
     } catch (e) {
       setState(() {
-        _error = 'Failed to add feed: $e';
+        _lastValidationError = null;
+        _error = 'Proxy validation failed: ${e.toString()}';
       });
     }
   }
@@ -313,31 +381,59 @@ class _NewsWidgetState extends State<NewsWidget> {
                     color: DarkThemeData.errorColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.warning_rounded,
-                        size: 16,
-                        color: DarkThemeData.errorColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.warning_rounded,
+                            size: 16,
                             color: DarkThemeData.errorColor,
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: DarkThemeData.errorColor,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => setState(() {
+                              _error = null;
+                              _lastValidationError = null;
+                            }),
+                            icon: const Icon(Icons.close_rounded),
+                            iconSize: 16,
+                            style: IconButton.styleFrom(
+                              foregroundColor: DarkThemeData.errorColor,
+                              padding: const EdgeInsets.all(4),
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: () => setState(() => _error = null),
-                        icon: const Icon(Icons.close_rounded),
-                        iconSize: 16,
-                        style: IconButton.styleFrom(
-                          foregroundColor: DarkThemeData.errorColor,
-                          padding: const EdgeInsets.all(4),
+                      // Show "Try with Proxy" button for CORS errors on web platform
+                      if (_lastValidationError?.canRetryWithProxy == true) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Spacer(),
+                            ElevatedButton.icon(
+                              onPressed: _tryWithProxy,
+                              icon: const Icon(Icons.wifi_protected_setup_rounded, size: 16),
+                              label: const Text('Try with Proxy'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: DarkThemeData.accentColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                textStyle: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

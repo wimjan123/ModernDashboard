@@ -1,9 +1,14 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import 'package:crypto/crypto.dart';
 import '../models/rss_feed.dart';
+import '../core/exceptions/feed_validation_exception.dart';
+import '../core/services/cors_proxy_service.dart';
+import '../core/utils/url_validator.dart';
 
 class RSSService {
   static const int _timeoutSeconds = 10;
@@ -19,28 +24,52 @@ class RSSService {
         return _cache[feed.id] ?? [];
       }
 
-      // For web platform, we need to use CORS proxy or return mock data
+      String content;
+      
+      // For web platform, use CORS proxy or return mock data
       if (kIsWeb) {
-        return _getMockArticlesForFeed(feed);
+        try {
+          final corsProxy = CorsProxyService.instance;
+          content = await corsProxy.fetchWithProxy(feed.url);
+        } catch (e) {
+          debugPrint('RSSService: CORS proxy failed, using mock data: $e');
+          return _getMockArticlesForFeed(feed);
+        }
+      } else {
+        // Direct fetch for non-web platforms
+        final response = await http
+            .get(Uri.parse(feed.url))
+            .timeout(const Duration(seconds: _timeoutSeconds));
+
+        if (response.statusCode != 200) {
+          throw FeedValidationException.serverError(
+            feed.url, 
+            response.statusCode,
+            statusMessage: response.reasonPhrase,
+          );
+        }
+        
+        content = response.body;
       }
 
-      final response = await http
-          .get(Uri.parse(feed.url))
-          .timeout(const Duration(seconds: _timeoutSeconds));
-
-      if (response.statusCode != 200) {
-        throw Exception('HTTP ${response.statusCode}: Failed to fetch feed');
-      }
-
-      final articles = _parseRSSFeed(response.body, feed);
+      final articles = _parseRSSFeed(content, feed);
       
       // Cache the results
       _cache[feed.id] = articles;
       _cacheTimestamps[feed.id] = DateTime.now();
 
       return articles;
+    } on FeedValidationException {
+      rethrow;
+    } on TimeoutException {
+      throw FeedValidationException.timeout(feed.url);
+    } on SocketException catch (e) {
+      throw FeedValidationException.networkError(feed.url, details: e.message);
+    } on HttpException catch (e) {
+      throw FeedValidationException.networkError(feed.url, details: e.message);
     } catch (e) {
-      throw Exception('Failed to fetch RSS feed: $e');
+      debugPrint('RSSService: Unexpected error fetching feed: $e');
+      throw FeedValidationException.networkError(feed.url, details: e.toString());
     }
   }
 
@@ -48,33 +77,154 @@ class RSSService {
   static List<NewsArticle> _parseRSSFeed(String xmlContent, RSSFeed feed) {
     try {
       final document = XmlDocument.parse(xmlContent);
-      final items = document.findAllElements('item');
-
-      return items.map((item) {
-        final title = item.findElements('title').first.innerText.trim();
-        final description = _extractDescription(item);
-        final link = item.findElements('link').first.innerText.trim();
-        final pubDate = _parseDate(item.findElements('pubDate').isNotEmpty 
-            ? item.findElements('pubDate').first.innerText 
-            : '');
-        final imageUrl = _extractImageUrl(item);
-
-        // Generate unique ID for article
-        final id = _generateArticleId(link, title);
-
-        return NewsArticle(
-          id: id,
-          title: title,
-          description: description,
-          url: link,
-          imageUrl: imageUrl,
-          publishedAt: pubDate,
-          feedId: feed.id,
-          feedName: feed.name,
-        );
+      
+      // Check for RSS or Atom format
+      final rssItems = document.findAllElements('item');
+      final atomEntries = document.findAllElements('entry');
+      
+      if (rssItems.isEmpty && atomEntries.isEmpty) {
+        throw FeedValidationException.notRssFeed(feed.url);
+      }
+      
+      // Parse RSS format
+      if (rssItems.isNotEmpty) {
+        return rssItems.map((item) {
+          return _parseRSSItem(item, feed);
+        }).toList();
+      }
+      
+      // Parse Atom format
+      return atomEntries.map((entry) {
+        return _parseAtomEntry(entry, feed);
       }).toList();
+      
+    } on XmlParserException {
+      throw FeedValidationException.notRssFeed(feed.url);
     } catch (e) {
-      throw Exception('Failed to parse RSS feed: $e');
+      if (e is FeedValidationException) rethrow;
+      throw FeedValidationException.notRssFeed(feed.url);
+    }
+  }
+  
+  /// Parse RSS item element
+  static NewsArticle _parseRSSItem(XmlElement item, RSSFeed feed) {
+    try {
+      final title = _getElementText(item, 'title').trim();
+      final description = _extractDescription(item);
+      final link = _getElementText(item, 'link').trim();
+      final pubDate = _parseDate(_getElementText(item, 'pubDate'));
+      final imageUrl = _extractImageUrl(item);
+
+      // Generate unique ID for article
+      final id = _generateArticleId(link.isNotEmpty ? link : title, title);
+
+      return NewsArticle(
+        id: id,
+        title: title.isNotEmpty ? title : 'No title',
+        description: description,
+        url: link.isNotEmpty ? link : 'https://example.com',
+        imageUrl: imageUrl,
+        publishedAt: pubDate,
+        feedId: feed.id,
+        feedName: feed.name,
+      );
+    } catch (e) {
+      debugPrint('RSSService: Error parsing RSS item: $e');
+      // Return a fallback article rather than failing completely
+      return NewsArticle(
+        id: _generateArticleId('fallback-${DateTime.now().millisecondsSinceEpoch}', 'Error'),
+        title: 'Error parsing article',
+        description: 'This article could not be parsed properly.',
+        url: 'https://example.com',
+        imageUrl: null,
+        publishedAt: DateTime.now(),
+        feedId: feed.id,
+        feedName: feed.name,
+      );
+    }
+  }
+  
+  /// Parse Atom entry element
+  static NewsArticle _parseAtomEntry(XmlElement entry, RSSFeed feed) {
+    try {
+      final title = _getElementText(entry, 'title').trim();
+      final description = _extractAtomSummary(entry);
+      final link = _extractAtomLink(entry);
+      final pubDate = _parseDate(_getElementText(entry, 'published', fallback: _getElementText(entry, 'updated')));
+      final imageUrl = _extractImageUrl(entry);
+
+      // Generate unique ID for article
+      final id = _generateArticleId(link.isNotEmpty ? link : title, title);
+
+      return NewsArticle(
+        id: id,
+        title: title.isNotEmpty ? title : 'No title',
+        description: description,
+        url: link.isNotEmpty ? link : 'https://example.com',
+        imageUrl: imageUrl,
+        publishedAt: pubDate,
+        feedId: feed.id,
+        feedName: feed.name,
+      );
+    } catch (e) {
+      debugPrint('RSSService: Error parsing Atom entry: $e');
+      // Return a fallback article rather than failing completely
+      return NewsArticle(
+        id: _generateArticleId('fallback-${DateTime.now().millisecondsSinceEpoch}', 'Error'),
+        title: 'Error parsing article',
+        description: 'This article could not be parsed properly.',
+        url: 'https://example.com',
+        imageUrl: null,
+        publishedAt: DateTime.now(),
+        feedId: feed.id,
+        feedName: feed.name,
+      );
+    }
+  }
+  
+  /// Safely get element text with fallback
+  static String _getElementText(XmlElement parent, String elementName, {String fallback = ''}) {
+    try {
+      final elements = parent.findElements(elementName);
+      return elements.isNotEmpty ? elements.first.innerText : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  
+  /// Extract Atom summary/content
+  static String _extractAtomSummary(XmlElement entry) {
+    final summaryFields = ['summary', 'content'];
+    
+    for (final field in summaryFields) {
+      final text = _getElementText(entry, field);
+      if (text.isNotEmpty) {
+        String cleaned = text.replaceAll(RegExp(r'<[^>]*>'), '');
+        cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+        if (cleaned.length > 300) {
+          cleaned = '${cleaned.substring(0, 300)}...';
+        }
+        return cleaned;
+      }
+    }
+    
+    return 'No description available';
+  }
+  
+  /// Extract Atom link
+  static String _extractAtomLink(XmlElement entry) {
+    try {
+      final linkElements = entry.findElements('link');
+      for (final link in linkElements) {
+        final href = link.getAttribute('href');
+        final rel = link.getAttribute('rel');
+        if (href != null && (rel == null || rel == 'alternate')) {
+          return href;
+        }
+      }
+      return '';
+    } catch (e) {
+      return '';
     }
   }
 
@@ -205,35 +355,85 @@ class RSSService {
     _cacheTimestamps.clear();
   }
 
-  /// Validate RSS feed URL
-  static Future<bool> validateFeedUrl(String url) async {
+  /// Validate RSS feed URL with comprehensive error handling
+  static Future<void> validateFeedUrl(String url) async {
+    // Step 1: Format validation
+    final formatResult = kIsWeb ? UrlValidator.validateForWeb(url) : UrlValidator.validateFeedFormat(url);
+    if (!formatResult.isValid) {
+      throw FeedValidationException.invalidUrl(url, suggestion: formatResult.suggestion);
+    }
+    
+    // Step 2: Network validation
     try {
-      final response = await http
-          .head(Uri.parse(url))
-          .timeout(const Duration(seconds: 5));
-      
-      return response.statusCode == 200;
+      if (kIsWeb) {
+        // Use CORS proxy service for web platform
+        final corsProxy = CorsProxyService.instance;
+        await corsProxy.testWithProxy(url);
+      } else {
+        // Direct validation for non-web platforms
+        final response = await http
+            .head(Uri.parse(url))
+            .timeout(const Duration(seconds: 8));
+        
+        if (response.statusCode == 403 || response.statusCode == 405) {
+          // Some servers block HEAD requests, try GET with limited range
+          final getResponse = await http
+              .get(Uri.parse(url), headers: {'Range': 'bytes=0-1023'})
+              .timeout(const Duration(seconds: 8));
+          
+          if (getResponse.statusCode != 200 && getResponse.statusCode != 206) {
+            throw FeedValidationException.serverError(url, getResponse.statusCode);
+          }
+          
+          // Basic content validation
+          final content = getResponse.body.toLowerCase();
+          if (!content.contains('<rss') && !content.contains('<feed') && 
+              !content.contains('<atom') && !content.contains('<?xml')) {
+            throw FeedValidationException.notRssFeed(url);
+          }
+        } else if (response.statusCode != 200) {
+          throw FeedValidationException.serverError(url, response.statusCode);
+        }
+      }
+    } on FeedValidationException {
+      rethrow;
+    } on TimeoutException {
+      throw FeedValidationException.timeout(url);
+    } on SocketException catch (e) {
+      throw FeedValidationException.networkError(url, details: e.message);
+    } on HttpException catch (e) {
+      throw FeedValidationException.networkError(url, details: e.message);
+    } catch (e) {
+      throw FeedValidationException.networkError(url, details: e.toString());
+    }
+  }
+  
+  /// Quick validation for UI feedback (returns bool for compatibility)
+  static Future<bool> quickValidate(String url) async {
+    try {
+      await validateFeedUrl(url);
+      return true;
     } catch (e) {
       return false;
     }
   }
 
-  /// Get popular RSS feeds for suggestions
+  /// Get popular RSS feeds for suggestions (with more reliable URLs)
   static List<Map<String, String>> getPopularFeeds() {
     return [
       {
         'name': 'BBC News',
-        'url': 'http://feeds.bbci.co.uk/news/rss.xml',
-        'category': 'News',
-      },
-      {
-        'name': 'CNN Top Stories',
-        'url': 'http://rss.cnn.com/rss/edition.rss',
+        'url': 'https://feeds.bbci.co.uk/news/rss.xml',
         'category': 'News',
       },
       {
         'name': 'Reuters World News',
         'url': 'https://feeds.reuters.com/reuters/worldNews',
+        'category': 'News',
+      },
+      {
+        'name': 'Associated Press',
+        'url': 'https://feeds.apnews.com/rss/apnews/home',
         'category': 'News',
       },
       {
@@ -252,16 +452,40 @@ class RSSService {
         'category': 'Technology',
       },
       {
-        'name': 'ESPN',
-        'url': 'https://www.espn.com/espn/rss/news',
-        'category': 'Sports',
+        'name': 'Hacker News',
+        'url': 'https://hnrss.org/frontpage',
+        'category': 'Technology',
       },
       {
-        'name': 'NASA News',
-        'url': 'https://www.nasa.gov/rss/dyn/breaking_news.rss',
+        'name': 'NASA Breaking News',
+        'url': 'https://www.nasa.gov/news/releases/latest/index.html',
         'category': 'Science',
       },
+      {
+        'name': 'NPR News',
+        'url': 'https://feeds.npr.org/1001/rss.xml',
+        'category': 'News',
+      },
+      {
+        'name': 'Reddit Technology',
+        'url': 'https://www.reddit.com/r/technology/.rss',
+        'category': 'Technology',
+      },
     ];
+  }
+  
+  /// Initialize the RSS service (setup CORS proxy if needed)
+  static Future<void> initialize() async {
+    try {
+      if (kIsWeb) {
+        await CorsProxyService.instance.initialize();
+        debugPrint('RSSService: CORS proxy service initialized');
+      }
+      debugPrint('RSSService: Initialized successfully');
+    } catch (e) {
+      debugPrint('RSSService: Warning - initialization failed: $e');
+      // Don't throw error, service should still work with limitations
+    }
   }
 
   /// Get mock articles for web platform (CORS limitations)

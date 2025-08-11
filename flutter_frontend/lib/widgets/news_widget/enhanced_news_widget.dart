@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../common/glass_card.dart';
 import '../../core/theme/dark_theme.dart';
+import '../../core/exceptions/feed_validation_exception.dart';
+import '../../core/services/cors_proxy_service.dart';
 import '../../repositories/repository_provider.dart';
 import '../../models/rss_feed.dart';
 import '../../services/rss_service.dart';
@@ -23,6 +25,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
   bool _isRefreshing = false;
   String? _error;
   String _selectedCategory = 'All';
+  FeedValidationException? _lastValidationError;
 
   @override
   void initState() {
@@ -112,13 +115,12 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
 
     setState(() {
       _error = null;
+      _lastValidationError = null;
     });
 
     try {
-      // Validate URL first
-      if (!await RSSService.validateFeedUrl(url)) {
-        throw Exception('Invalid RSS feed URL');
-      }
+      // Validate URL first using enhanced validation
+      await RSSService.validateFeedUrl(url);
 
       final repositoryProvider = Provider.of<RepositoryProvider>(context, listen: false);
       final newFeed = RSSFeed(
@@ -136,15 +138,102 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
       // Reload data
       await _loadData();
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('RSS feed added successfully'),
-          backgroundColor: DarkThemeData.accentColor,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('RSS feed added successfully'),
+            backgroundColor: DarkThemeData.accentColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } on FeedValidationException catch (e) {
+      setState(() {
+        _lastValidationError = e;
+        _error = _getFriendlyErrorMessage(e);
+      });
     } catch (e) {
       setState(() {
-        _error = 'Failed to add feed: $e';
+        _lastValidationError = null;
+        _error = 'Failed to add feed: ${e.toString()}';
+      });
+    }
+  }
+
+  /// Convert FeedValidationException to user-friendly error message
+  String _getFriendlyErrorMessage(FeedValidationException e) {
+    switch (e.code) {
+      case 'invalid_url':
+        return '${e.userMessage}${e.suggestion != null ? '\n💡 ${e.suggestion}' : ''}';
+      case 'cors_blocked':
+        return '${e.userMessage}\n💡 This is a browser limitation. You can try using a CORS proxy service.';
+      case 'not_rss_feed':
+        return '${e.userMessage}\n💡 ${e.suggestion ?? 'Please verify the URL points to an RSS or Atom feed.'}';
+      case 'network_error':
+        return '${e.userMessage}\n💡 Check your internet connection and try again.';
+      case 'timeout':
+        return '${e.userMessage}\n💡 The server is taking too long to respond. Try again later.';
+      case 'server_error':
+        return '${e.userMessage}\n💡 ${e.suggestion ?? 'The server may be temporarily unavailable.'}';
+      case 'duplicate_feed':
+        return '${e.userMessage}\n💡 ${e.suggestion ?? 'This RSS feed is already in your collection.'}';
+      default:
+        return e.userMessage;
+    }
+  }
+
+  /// Try adding feed using CORS proxy (for web platform)
+  Future<void> _tryWithProxy() async {
+    final url = _quickAddController.text.trim();
+    if (url.isEmpty) return;
+
+    setState(() {
+      _error = null;
+    });
+
+    try {
+      final corsProxy = CorsProxyService.instance;
+      await corsProxy.forceProxyValidation(url);
+      
+      // If validation succeeds, add the feed
+      final repositoryProvider = Provider.of<RepositoryProvider>(context, listen: false);
+      final newFeed = RSSFeed(
+        id: '', // Will be set by repository
+        name: _extractFeedName(url),
+        url: url,
+        category: 'General',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await repositoryProvider.rssFeedRepository.addFeed(newFeed);
+      _quickAddController.clear();
+      
+      setState(() {
+        _lastValidationError = null;
+      });
+      
+      // Reload data
+      await _loadData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('RSS feed added successfully via proxy'),
+            backgroundColor: DarkThemeData.accentColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } on FeedValidationException catch (e) {
+      setState(() {
+        _lastValidationError = e;
+        _error = 'Proxy validation failed: ${_getFriendlyErrorMessage(e)}';
+      });
+    } catch (e) {
+      setState(() {
+        _lastValidationError = null;
+        _error = 'Proxy validation failed: ${e.toString()}';
       });
     }
   }
