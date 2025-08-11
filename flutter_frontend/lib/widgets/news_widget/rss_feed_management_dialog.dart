@@ -94,10 +94,8 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
     });
 
     try {
-      // Validate URL first
-      if (!await RSSService.validateFeedUrl(url)) {
-        throw Exception('Invalid RSS feed URL');
-      }
+      // Validate URL first - this method now throws exceptions instead of returning bool
+      await RSSService.validateFeedUrl(url);
 
       final repositoryProvider = Provider.of<RepositoryProvider>(context, listen: false);
 

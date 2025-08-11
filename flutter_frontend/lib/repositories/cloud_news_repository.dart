@@ -6,7 +6,6 @@ import 'package:crypto/crypto.dart';
 import '../firebase/firebase_service.dart';
 import '../core/exceptions/feed_validation_exception.dart';
 import '../core/services/cors_proxy_service.dart';
-import '../core/utils/url_validator.dart';
 import '../services/rss_service.dart';
 import 'news_repository.dart';
 
@@ -305,7 +304,7 @@ class CloudNewsRepository implements NewsRepository {
   /// Fetch articles from a specific feed
   Future<void> _fetchFeedArticles(String feedUrl, String feedName) async {
     try {
-      String content;
+      String? content;
       
       // Use appropriate fetching method based on platform
       if (kIsWeb) {
@@ -319,13 +318,12 @@ class CloudNewsRepository implements NewsRepository {
         }
       } else {
         // Direct fetch for non-web platforms with retry logic
-        http.Response response;
         int retryCount = 0;
         const maxRetries = 3;
         
         while (retryCount < maxRetries) {
           try {
-            response = await http.get(Uri.parse(feedUrl))
+            final response = await http.get(Uri.parse(feedUrl))
                 .timeout(const Duration(seconds: 10));
             
             if (response.statusCode == 200) {
@@ -350,8 +348,13 @@ class CloudNewsRepository implements NewsRepository {
         }
       }
       
-      final articles = _parseFeedContent(content, feedUrl, feedName);
-      await _cacheArticles(articles);
+      // Only process if we have content
+      if (content != null && content.isNotEmpty) {
+        final articles = _parseFeedContent(content, feedUrl, feedName);
+        await _cacheArticles(articles);
+      } else {
+        debugPrint('CloudNewsRepository: No content received for $feedUrl');
+      }
     } on FeedValidationException catch (e) {
       debugPrint('CloudNewsRepository: Feed validation error for $feedUrl: $e');
       // Don't rethrow, just log the error - other feeds should still work

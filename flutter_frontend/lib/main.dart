@@ -20,6 +20,7 @@ import 'repositories/repository_provider.dart';
 import 'core/exceptions/initialization_exception.dart';
 import 'core/models/initialization_status.dart';
 import 'core/services/web_compatibility_service.dart';
+import 'services/rss_service.dart';
 
 Future<void> main() async {
   // Set up global error handling
@@ -83,6 +84,7 @@ Future<void> main() async {
       
       if (useMockData) {
         // For mock data, skip Firebase initialization and go straight to offline mode
+        await RSSService.initialize(); // Initialize RSS service even in offline mode
         await RepositoryProvider.instance.switchToOfflineMode();
         runApp(const ModernDashboardApp(startInitialization: false));
       } else {
@@ -194,8 +196,12 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
     log('Starting Firebase initialization...');
     
     FirebaseService.instance.initializeFirebase().then((_) {
-      log('Firebase initialization completed, initializing repositories...');
-      // Initialize repositories after Firebase
+      log('Firebase initialization completed, initializing services...');
+      // Initialize RSS service
+      return RSSService.initialize();
+    }).then((_) {
+      log('RSS service initialized, initializing repositories...');
+      // Initialize repositories after services
       return RepositoryProvider.instance.initialize();
     }).then((_) {
       log('All initialization completed successfully');
