@@ -37,23 +37,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
             stream: _dashboardKey.currentState?.refreshStream ?? Stream.value(false),
             builder: (context, snapshot) {
               final isRefreshing = snapshot.data ?? false;
-              return IconButton(
-                icon: isRefreshing
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.onSurface,
+              return RepaintBoundary(
+                key: const ValueKey('refresh_button'),
+                child: IconButton(
+                  icon: isRefreshing
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: RepaintBoundary(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
                           ),
-                        ),
-                      )
-                    : const Icon(Icons.refresh_rounded),
-                tooltip: isRefreshing ? 'Refreshing...' : 'Refresh Data',
-                onPressed: isRefreshing ? null : () {
-                  _dashboardKey.currentState?.refreshData();
-                },
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                  tooltip: isRefreshing ? 'Refreshing...' : 'Refresh Data',
+                  onPressed: isRefreshing ? null : () {
+                    _dashboardKey.currentState?.refreshData();
+                  },
+                ),
               );
             },
           ),

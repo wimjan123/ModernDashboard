@@ -20,9 +20,13 @@ import 'repositories/repository_provider.dart';
 import 'core/exceptions/initialization_exception.dart';
 import 'core/models/initialization_status.dart';
 import 'core/services/web_compatibility_service.dart';
+import 'core/services/web_performance_debugger.dart';
 import 'services/rss_service.dart';
 
 Future<void> main() async {
+  // Initialize web performance debugging
+  WebPerformanceDebugger.instance.initialize();
+
   // Set up global error handling
   FlutterError.onError = (FlutterErrorDetails details) {
     log(

@@ -200,12 +200,16 @@ class _DashboardLayoutState extends State<DashboardLayout>
         );
     }
 
-    return SlideTransition(
-      position: _slideAnimation,
-      child: AnimatedOpacity(
-        duration: Duration(milliseconds: 300 + (index * 100)),
-        opacity: _isInitialized ? 1.0 : 0.7,
-        child: content,
+    // Wrap each widget with RepaintBoundary to prevent unnecessary repaints
+    return RepaintBoundary(
+      key: ValueKey('widget_${cfg.id}_$index'),
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: AnimatedOpacity(
+          duration: Duration(milliseconds: 300 + (index * 100)),
+          opacity: _isInitialized ? 1.0 : 0.7,
+          child: content,
+        ),
       ),
     );
   }
@@ -269,23 +273,34 @@ class _DashboardLayoutState extends State<DashboardLayout>
 
                 return Stack(
                   children: [
-                    GridView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        childAspectRatio: childAspectRatio,
-                        crossAxisSpacing: 20,
-                        mainAxisSpacing: 20,
+                    // Wrap GridView in RepaintBoundary for performance
+                    RepaintBoundary(
+                      key: const ValueKey('dashboard_grid'),
+                      child: GridView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          childAspectRatio: childAspectRatio,
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 20,
+                        ),
+                        itemCount: _widgets.length,
+                        itemBuilder: (context, index) => _buildWidget(_widgets[index], index),
                       ),
-                      itemCount: _widgets.length,
-                      itemBuilder: (context, index) => _buildWidget(_widgets[index], index),
                     ),
-                    // Refresh overlay
+                    // Isolate refresh indicator to prevent full screen repaints
                     if (_isRefreshing)
-                      Container(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        child: const Center(
-                          child: CircularProgressIndicator(),
+                      RepaintBoundary(
+                        key: const ValueKey('refresh_overlay'),
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          child: const Center(
+                            child: RepaintBoundary(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                   ],
