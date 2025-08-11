@@ -9,6 +9,8 @@ import 'screens/dashboard_screen.dart';
 import 'screens/migration_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/initialization_progress_screen.dart';
+import 'screens/splash_screen.dart';
+import 'screens/initialization_error_screen.dart';
 import 'firebase/firebase_service.dart';
 import 'firebase/migration_service.dart';
 import 'firebase/auth_service.dart';
@@ -59,12 +61,27 @@ class ModernDashboardApp extends StatefulWidget {
 }
 
 class _ModernDashboardAppState extends State<ModernDashboardApp> {
+  bool _showSplashScreen = true;
+  bool _hasBeenTimeoutOrInitialized = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.startInitialization) {
+      _startSplashTimeout();
       _startInitialization();
     }
+  }
+  
+  void _startSplashTimeout() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && _showSplashScreen && !_hasBeenTimeoutOrInitialized) {
+        setState(() {
+          _showSplashScreen = false;
+          _hasBeenTimeoutOrInitialized = true;
+        });
+      }
+    });
   }
   
   void _startInitialization() {
@@ -106,7 +123,30 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
                 
                 final status = snapshot.data;
                 
-                // Handle connection states and null status
+                // Show SplashScreen when status is null (before initialization starts)
+                if (status == null && _showSplashScreen) {
+                  return SplashScreen(
+                    initializationStream: FirebaseService.instance.initializationStatusStream,
+                    onTimeout: () {
+                      if (mounted && !_hasBeenTimeoutOrInitialized) {
+                        setState(() {
+                          _showSplashScreen = false;
+                          _hasBeenTimeoutOrInitialized = true;
+                        });
+                      }
+                    },
+                  );
+                }
+                
+                // Transition from splash screen when initialization begins
+                if (status != null && _showSplashScreen && !_hasBeenTimeoutOrInitialized) {
+                  setState(() {
+                    _showSplashScreen = false;
+                    _hasBeenTimeoutOrInitialized = true;
+                  });
+                }
+                
+                // Handle connection states and null status after splash
                 if (status == null || (snapshot.hasData && status.isInProgress)) {
                   return InitializationProgressScreen(
                     status: status,
