@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:developer';
+import '../../core/services/error_reporting_service.dart';
+import '../../core/services/web_compatibility_service.dart';
 
 class ErrorBoundary extends StatefulWidget {
   final Widget child;
@@ -70,6 +72,44 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
       error: error,
       stackTrace: kDebugMode ? stackTrace : null,
     );
+    
+    // Report error to ErrorReportingService for centralized tracking
+    ErrorReportingService.instance.reportWidgetError(
+      error,
+      stackTrace,
+      widgetName: widget.context ?? 'ErrorBoundary',
+      userAction: 'Widget rendering or interaction',
+    );
+    
+    // Check for web-specific compatibility issues
+    if (kIsWeb) {
+      WebCompatibilityService.instance.initialize().then((_) {
+        final isWebCompatibilityIssue = WebCompatibilityService.instance.isKnownFirebaseInteropIssue(error);
+        if (isWebCompatibilityIssue) {
+          log('ErrorBoundary: Detected web compatibility issue - logging recommendations');
+          final recommendations = WebCompatibilityService.instance.getRecommendedFixes();
+          if (recommendations.isNotEmpty) {
+            log('ErrorBoundary web compatibility recommendations: ${recommendations.keys.join(', ')}');
+          }
+          
+          // Report web-specific error with additional context
+          ErrorReportingService.instance.reportError(
+            'web_compatibility_widget_error',
+            error,
+            stackTrace,
+            context: {
+              'widget_context': widget.context ?? 'ErrorBoundary',
+              'web_compatibility_issue': true,
+              'recommendations': recommendations.keys.toList(),
+              'compatibility_report': WebCompatibilityService.instance.hasCompatibilityIssues(),
+            },
+            severity: ErrorSeverity.high,
+          );
+        }
+      }).catchError((e) {
+        log('ErrorBoundary: Failed to initialize WebCompatibilityService: $e');
+      });
+    }
   }
 
   void _retry() {
@@ -288,6 +328,15 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   ErrorType _categorizeError(Object error) {
     final errorString = error.toString().toLowerCase();
     
+    // Use WebCompatibilityService for more accurate web error detection
+    if (kIsWeb) {
+      final isWebCompatibilityIssue = WebCompatibilityService.instance.isKnownFirebaseInteropIssue(error);
+      if (isWebCompatibilityIssue) {
+        return ErrorType.serialization;
+      }
+    }
+    
+    // Fallback to string-based detection
     if (errorString.contains('javascriptobject') || 
         errorString.contains('typeerror') ||
         errorString.contains('interop')) {
@@ -338,6 +387,15 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   String _getErrorMessage(ErrorType errorType, Object error) {
     switch (errorType) {
       case ErrorType.serialization:
+        // Provide web-specific guidance if available
+        if (kIsWeb && WebCompatibilityService.instance.hasCompatibilityIssues()) {
+          final recommendations = WebCompatibilityService.instance.getRecommendedFixes();
+          if (recommendations.containsKey('offline_mode')) {
+            return 'There was a data processing issue due to browser compatibility. Consider switching to offline mode for better stability.';
+          } else if (recommendations.containsKey('firebase_packages')) {
+            return 'This appears to be a Firebase compatibility issue. The system can switch to offline mode to continue working.';
+          }
+        }
         return 'There was an issue processing the data. This might be due to a compatibility issue with your browser or outdated data format.';
       case ErrorType.network:
         return 'Unable to connect to the service. Please check your internet connection and try again.';
@@ -349,6 +407,22 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   }
 
   void _showDebugDialog(BuildContext context, Object error, StackTrace? stackTrace) {
+    // Gather additional debug information
+    final errorSummary = ErrorReportingService.instance.getErrorSummary();
+    final recentErrors = ErrorReportingService.instance.getRecentErrors(
+      minSeverity: ErrorSeverity.medium,
+      since: const Duration(minutes: 30),
+    );
+    
+    String webCompatibilityInfo = 'N/A (not on web platform)';
+    if (kIsWeb) {
+      if (WebCompatibilityService.instance.hasCompatibilityIssues()) {
+        webCompatibilityInfo = WebCompatibilityService.instance.generateCompatibilityReport();
+      } else {
+        webCompatibilityInfo = 'No compatibility issues detected';
+      }
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -359,20 +433,145 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Error: $error'),
-              if (stackTrace != null) ...[
+              const SizedBox(height: 16),
+              
+              // Error reporting summary
+              const Text(
+                'Error Summary (24h):',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text('Total errors: ${errorSummary['total_errors_24h']}'),
+              if (errorSummary['most_common_error'] != null)
+                Text('Most common: ${errorSummary['most_common_error']}'),
+              const SizedBox(height: 8),
+              
+              // Recent similar errors
+              if (recentErrors.isNotEmpty) ...[
+                Text(
+                  'Recent similar errors (${recentErrors.length}):',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                ...recentErrors.take(3).map(
+                  (report) => Text(
+                    '• ${report.type} (${report.severity.name}) - ${_formatTimestamp(report.timestamp)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
                 const SizedBox(height: 16),
-                const Text('Stack Trace:'),
+              ],
+              
+              // Web compatibility information
+              if (kIsWeb) ...[
+                const Text(
+                  'Web Compatibility:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 150),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      webCompatibilityInfo,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              
+              // Stack trace
+              if (stackTrace != null) ...[
+                const Text(
+                  'Stack Trace:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 Container(
-                  constraints: const BoxConstraints(maxHeight: 300),
+                  constraints: const BoxConstraints(maxHeight: 200),
                   child: SingleChildScrollView(
                     child: Text(
                       stackTrace.toString(),
                       style: const TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: 12,
+                        fontSize: 10,
                       ),
                     ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (kIsWeb && WebCompatibilityService.instance.hasCompatibilityIssues())
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Show web compatibility recommendations
+                _showWebCompatibilityDialog(context);
+              },
+              child: const Text('Web Solutions'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWebCompatibilityDialog(BuildContext context) {
+    final recommendations = WebCompatibilityService.instance.getRecommendedFixes();
+    final issues = WebCompatibilityService.instance.getDetectedIssues();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Web Compatibility Solutions'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Detected Issues:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ...issues.map(
+                (issue) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '• ${issue.title} (${issue.severity.name})',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        '  ${issue.description}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      Text(
+                        '  💡 ${issue.suggestion}',
+                        style: const TextStyle(fontSize: 12, color: Colors.blue),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (recommendations.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Recommended Actions:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                ...recommendations.entries.map(
+                  (entry) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text('• ${entry.value}'),
                   ),
                 ),
               ],
@@ -387,6 +586,21 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
         ],
       ),
     );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inMinutes < 1) {
+      return 'just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
   }
 }
 

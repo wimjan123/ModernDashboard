@@ -19,6 +19,7 @@ import 'firebase/auth_service.dart';
 import 'repositories/repository_provider.dart';
 import 'core/exceptions/initialization_exception.dart';
 import 'core/models/initialization_status.dart';
+import 'core/services/web_compatibility_service.dart';
 
 Future<void> main() async {
   // Set up global error handling
@@ -29,9 +30,29 @@ Future<void> main() async {
       stackTrace: kDebugMode ? details.stack : null,
     );
     
-    // Check for web-specific JavaScript interop errors
-    if (SafeJsonConverter.hasWebCompatibilityIssue(details.exception)) {
+    // Initialize WebCompatibilityService if not already done (for web-specific error handling)
+    if (kIsWeb) {
+      WebCompatibilityService.instance.initialize().catchError((e) {
+        log('Failed to initialize WebCompatibilityService: $e');
+      });
+    }
+    
+    // Check for web-specific JavaScript interop errors using WebCompatibilityService
+    final isWebCompatibilityIssue = kIsWeb 
+        ? WebCompatibilityService.instance.isKnownFirebaseInteropIssue(details.exception)
+        : SafeJsonConverter.hasWebCompatibilityIssue(details.exception);
+        
+    if (isWebCompatibilityIssue) {
       log('Detected web compatibility issue - attempting fallback to offline mode');
+      
+      // Get specific recommendations from WebCompatibilityService
+      if (kIsWeb) {
+        final recommendations = WebCompatibilityService.instance.getRecommendedFixes();
+        if (recommendations.isNotEmpty) {
+          log('WebCompatibilityService recommendations: ${recommendations.keys.join(', ')}');
+        }
+      }
+      
       // Try to switch to offline mode automatically
       RepositoryProvider.instance.switchToOfflineMode().catchError((e) {
         log('Failed to auto-switch to offline mode: $e');
@@ -50,6 +71,12 @@ Future<void> main() async {
       MCPToolkitBinding.instance
         ..initialize()
         ..initializeFlutterToolkit();
+      
+      // Initialize WebCompatibilityService early for web platform
+      if (kIsWeb) {
+        await WebCompatibilityService.instance.initialize();
+        log('WebCompatibilityService initialized successfully');
+      }
 
       // Check if we're using mock data (for development/testing)
       const bool useMockData = bool.fromEnvironment('USE_MOCK_DATA', defaultValue: false);
@@ -71,9 +98,25 @@ Future<void> main() async {
       // Additional error handling for Firebase/Firestore issues
       _logErrorDetails(error, stack, 'Zone Error');
       
-      // Check for web-specific errors and attempt recovery
-      if (kIsWeb && SafeJsonConverter.hasWebCompatibilityIssue(error)) {
-        log('Zone error: Detected web compatibility issue - attempting offline mode switch');
+      // Check for web-specific errors and attempt recovery using WebCompatibilityService
+      if (kIsWeb) {
+        final isWebCompatibilityIssue = WebCompatibilityService.instance.isKnownFirebaseInteropIssue(error);
+        if (isWebCompatibilityIssue) {
+          log('Zone error: Detected web compatibility issue - attempting offline mode switch');
+          
+          // Get specific recommendations
+          final recommendations = WebCompatibilityService.instance.getRecommendedFixes();
+          if (recommendations.isNotEmpty) {
+            log('WebCompatibilityService zone error recommendations: ${recommendations.keys.join(', ')}');
+          }
+          
+          RepositoryProvider.instance.switchToOfflineMode().catchError((e) {
+            log('Failed to switch to offline mode from zone error: $e');
+          });
+        }
+      } else if (SafeJsonConverter.hasWebCompatibilityIssue(error)) {
+        // Fallback for non-web platforms
+        log('Zone error: Detected compatibility issue - attempting offline mode switch');
         RepositoryProvider.instance.switchToOfflineMode().catchError((e) {
           log('Failed to switch to offline mode from zone error: $e');
         });

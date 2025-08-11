@@ -6,6 +6,7 @@ import '../common/error_boundary.dart';
 import '../../core/theme/dark_theme.dart';
 import '../../repositories/repository_provider.dart';
 import '../../repositories/todo_repository.dart';
+import '../../core/services/web_compatibility_service.dart';
 
 class TodoWidget extends StatefulWidget {
   const TodoWidget({super.key});
@@ -138,12 +139,20 @@ class _TodoWidgetState extends State<TodoWidget> {
 
     // Set up debounced offline mode check
     _offlineModeCheckTimer = Timer(_offlineModeCheckDebounce, () async {
+      // Use WebCompatibilityService for more accurate web-specific error detection
+      final webCompatService = WebCompatibilityService.instance;
+      
+      // Check if WebCompatibilityService identifies this as a known Firebase interop issue
+      final isWebInteropIssue = webCompatService.isKnownFirebaseInteropIssue(error);
+      
+      // Legacy detection for backwards compatibility
       final errorString = error.toString().toLowerCase();
+      final isLegacyWebIssue = errorString.contains('javascriptobject') ||
+          errorString.contains('typeerror') ||
+          errorString.contains('interop');
 
       // Check for serialization errors or persistent connection issues
-      if (errorString.contains('javascriptobject') ||
-          errorString.contains('typeerror') ||
-          errorString.contains('interop')) {
+      if (isWebInteropIssue || isLegacyWebIssue) {
         _retryCount++;
 
         if (_retryCount >= 3 && !_isOfflineMode) {
@@ -152,10 +161,14 @@ class _TodoWidgetState extends State<TodoWidget> {
           await repositoryProvider.switchToOfflineMode();
 
           if (mounted) {
+            // Get web-specific recommendations if available
+            final recommendations = webCompatService.getRecommendedFixes();
+            final offlineRecommendation = recommendations['offline_mode'] ?? 
+                'Switched to offline mode due to data processing issues.';
+            
             setState(() {
               _isOfflineMode = true;
-              _error =
-                  'Switched to offline mode due to data processing issues. You can still view and modify todos locally.';
+              _error = '$offlineRecommendation You can still view and modify todos locally.';
             });
           }
         }

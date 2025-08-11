@@ -232,12 +232,31 @@ class SafeJsonConverter {
             error.toString().contains('TypeError'));
   }
 
+  // Cache for runtime type strings to avoid repeated toString() calls
+  static final Map<Type, String> _typeStringCache = <Type, String>{};
+  static const int _maxCacheSize = 100;
+  
+  // Set for known problematic type patterns
+  static final Set<String> _problematicTypePatterns = {
+    'JavaScriptObject',
+    '_Interceptor',
+    'JSObject',
+    '_JSObject',
+  };
+
   static Map<String, dynamic> sanitizeForWeb(Map<String, dynamic> json) {
     if (!kIsWeb) return json;
 
-    // Add size limits to prevent performance issues with large objects
+    // Early termination for problematic objects
+    if (_hasKnownProblematicStructure(json)) {
+      log('SafeJsonConverter: Detected problematic object structure - applying aggressive sanitization');
+      return _sanitizeProblematicObject(json);
+    }
+
+    // Enhanced size limits to prevent performance issues with large objects
     const int maxFields = 100;
     const int maxStringLength = 10000;
+    const int maxNestingDepth = 10;
     
     if (json.length > maxFields) {
       log('SafeJsonConverter: Object too large (${json.length} fields), limiting to first $maxFields fields');
@@ -253,44 +272,9 @@ class SafeJsonConverter {
       final value = entry.value;
       
       try {
-        // Optimize type checks for basic types to avoid expensive operations
-        if (value == null || 
-            value is bool || 
-            value is int || 
-            value is double) {
-          sanitized[key] = value;
-        } else if (value is String) {
-          // Limit string length to prevent performance issues
-          if (value.length > maxStringLength) {
-            sanitized[key] = value.substring(0, maxStringLength);
-            log('SafeJsonConverter: Truncated string field $key from ${value.length} to $maxStringLength characters');
-          } else {
-            sanitized[key] = value;
-          }
-        } else if (value is List || value is Map) {
-          // For complex objects, do a simple check without deep inspection
-          try {
-            // Light validation - just check if we can access the type
-            value.runtimeType;
-            sanitized[key] = value;
-          } catch (e) {
-            log('SafeJsonConverter: Sanitizing complex field $key due to web compatibility issue: $e');
-            sanitized[key] = null;
-          }
-        } else {
-          // For other types, do minimal validation
-          try {
-            // Only call toString if it's not a JavaScriptObject-like type
-            final typeString = value.runtimeType.toString();
-            if (!typeString.contains('JavaScriptObject') && 
-                !typeString.contains('_Interceptor')) {
-              value.toString();
-            }
-            sanitized[key] = value;
-          } catch (e) {
-            log('SafeJsonConverter: Sanitizing field $key due to web compatibility issue: $e');
-            sanitized[key] = null;
-          }
+        final sanitizedValue = _sanitizeValue(value, maxStringLength, maxNestingDepth, 0);
+        if (sanitizedValue != null) {
+          sanitized[key] = sanitizedValue;
         }
       } catch (e) {
         log('SafeJsonConverter: Critical error sanitizing field $key: $e');
@@ -301,5 +285,168 @@ class SafeJsonConverter {
     }
 
     return sanitized;
+  }
+
+  /// Check for known problematic object structures that should be handled specially
+  static bool _hasKnownProblematicStructure(Map<String, dynamic> json) {
+    // Quick check for Firebase Timestamp-like structures
+    if (json.containsKey('seconds') && json.containsKey('nanoseconds')) {
+      return true;
+    }
+    
+    // Check for objects with many complex nested structures
+    int complexFieldCount = 0;
+    for (final value in json.values) {
+      if (value is Map || value is List) {
+        complexFieldCount++;
+        if (complexFieldCount > 20) { // Arbitrary threshold for "too complex"
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  /// Apply aggressive sanitization for known problematic objects
+  static Map<String, dynamic> _sanitizeProblematicObject(Map<String, dynamic> json) {
+    final sanitized = <String, dynamic>{};
+    
+    // Handle Firebase Timestamp conversion
+    if (json.containsKey('seconds') && json.containsKey('nanoseconds')) {
+      final seconds = json['seconds'];
+      final nanoseconds = json['nanoseconds'];
+      
+      if (seconds is int && nanoseconds is int) {
+        // Convert to ISO string for safe transport
+        final dateTime = DateTime.fromMillisecondsSinceEpoch(
+          seconds * 1000 + (nanoseconds ~/ 1000000)
+        );
+        sanitized['_timestamp'] = dateTime.toIso8601String();
+        sanitized['_original_seconds'] = seconds;
+        sanitized['_original_nanoseconds'] = nanoseconds;
+        return sanitized;
+      }
+    }
+    
+    // For other problematic objects, keep only primitive values
+    for (final entry in json.entries) {
+      final value = entry.value;
+      if (value == null || value is bool || value is int || value is double) {
+        sanitized[entry.key] = value;
+      } else if (value is String && value.length <= 1000) {
+        sanitized[entry.key] = value;
+      } else {
+        sanitized['${entry.key}_sanitized'] = value?.toString() ?? 'null';
+      }
+    }
+    
+    return sanitized;
+  }
+
+  /// Recursively sanitize a value with depth control
+  static dynamic _sanitizeValue(dynamic value, int maxStringLength, int maxDepth, int currentDepth) {
+    if (currentDepth > maxDepth) {
+      return '[Max depth exceeded]';
+    }
+    
+    // Fast path for primitive types
+    if (value == null || value is bool || value is int || value is double) {
+      return value;
+    }
+    
+    if (value is String) {
+      if (value.length > maxStringLength) {
+        log('SafeJsonConverter: Truncated string from ${value.length} to $maxStringLength characters');
+        return value.substring(0, maxStringLength);
+      }
+      return value;
+    }
+    
+    // Handle collections with recursion limit
+    if (value is List) {
+      try {
+        if (value.length > 50) { // Limit list size for performance
+          log('SafeJsonConverter: Truncating list from ${value.length} to 50 items');
+          return value.take(50)
+              .map((item) => _sanitizeValue(item, maxStringLength, maxDepth, currentDepth + 1))
+              .toList();
+        }
+        return value
+            .map((item) => _sanitizeValue(item, maxStringLength, maxDepth, currentDepth + 1))
+            .toList();
+      } catch (e) {
+        log('SafeJsonConverter: Error sanitizing list: $e');
+        return [];
+      }
+    }
+    
+    if (value is Map<String, dynamic>) {
+      try {
+        final sanitized = <String, dynamic>{};
+        for (final entry in value.entries) {
+          final sanitizedValue = _sanitizeValue(entry.value, maxStringLength, maxDepth, currentDepth + 1);
+          if (sanitizedValue != null) {
+            sanitized[entry.key] = sanitizedValue;
+          }
+        }
+        return sanitized;
+      } catch (e) {
+        log('SafeJsonConverter: Error sanitizing map: $e');
+        return <String, dynamic>{};
+      }
+    }
+    
+    // Use cached type checking for performance
+    if (_isProblematicType(value)) {
+      log('SafeJsonConverter: Sanitizing problematic type: ${value.runtimeType}');
+      return null;
+    }
+    
+    // For other types, try minimal validation with caching
+    try {
+      final typeString = _getCachedTypeString(value.runtimeType);
+      if (_problematicTypePatterns.any((pattern) => typeString.contains(pattern))) {
+        return null;
+      }
+      
+      // Try to access the object safely
+      value.toString();
+      return value;
+    } catch (e) {
+      log('SafeJsonConverter: Sanitizing value due to web compatibility issue: $e');
+      return null;
+    }
+  }
+
+  /// Get cached type string to avoid repeated toString() calls on runtimeType
+  static String _getCachedTypeString(Type type) {
+    // Check cache first
+    if (_typeStringCache.containsKey(type)) {
+      return _typeStringCache[type]!;
+    }
+    
+    // Manage cache size
+    if (_typeStringCache.length >= _maxCacheSize) {
+      // Remove oldest entries (simple FIFO)
+      final firstKey = _typeStringCache.keys.first;
+      _typeStringCache.remove(firstKey);
+    }
+    
+    // Add to cache
+    final typeString = type.toString();
+    _typeStringCache[type] = typeString;
+    return typeString;
+  }
+
+  /// Fast check for known problematic types using pattern matching
+  static bool _isProblematicType(dynamic value) {
+    try {
+      final typeString = _getCachedTypeString(value.runtimeType);
+      return _problematicTypePatterns.any((pattern) => typeString.contains(pattern));
+    } catch (e) {
+      // If we can't even get the type string, it's definitely problematic
+      return true;
+    }
   }
 }

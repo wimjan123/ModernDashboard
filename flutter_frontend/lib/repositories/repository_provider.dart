@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../firebase/firebase_service.dart';
 import '../core/services/error_reporting_service.dart';
+import '../core/services/web_compatibility_service.dart';
 import '../core/utils/safe_json_converter.dart';
 import 'todo_repository.dart';
 import 'weather_repository.dart';
@@ -70,7 +71,9 @@ class RepositoryProvider extends ChangeNotifier {
         },
         onError: (error) {
           log('RepositoryProvider: Error in offline mode stream: $error');
-          _handleInitializationError(error);
+          _handleInitializationError(error).catchError((e) {
+            log('RepositoryProvider: Failed to handle initialization error: $e');
+          });
         },
       );
 
@@ -108,7 +111,7 @@ class RepositoryProvider extends ChangeNotifier {
       _isInitialized = true;
       notifyListeners();
     } catch (e) {
-      _handleInitializationError(e);
+      await _handleInitializationError(e);
       
       // Try offline mode as fallback if enabled
       if (_enableOfflineMode && !_offlineModeActive) {
@@ -138,7 +141,7 @@ class RepositoryProvider extends ChangeNotifier {
     }
   }
 
-  void _handleInitializationError(dynamic error) {
+  Future<void> _handleInitializationError(dynamic error) async {
     final now = DateTime.now();
     
     // Reset counter if enough time has passed
@@ -162,13 +165,36 @@ class RepositoryProvider extends ChangeNotifier {
       severity: _consecutiveErrors >= _maxConsecutiveErrors ? ErrorSeverity.critical : ErrorSeverity.high,
     );
 
-    // Check for web compatibility issues
-    if (kIsWeb && SafeJsonConverter.hasWebCompatibilityIssue(error)) {
-      log('RepositoryProvider: Detected web compatibility issue in initialization');
+    // Check for web compatibility issues using WebCompatibilityService
+    if (kIsWeb) {
+      // Initialize WebCompatibilityService if not already done
+      await WebCompatibilityService.instance.initialize();
+      
+      final isWebCompatibilityIssue = WebCompatibilityService.instance.isKnownFirebaseInteropIssue(error);
+      if (isWebCompatibilityIssue) {
+        log('RepositoryProvider: Detected web compatibility issue in initialization');
+        
+        // Get specific recommendations from WebCompatibilityService
+        final recommendations = WebCompatibilityService.instance.getRecommendedFixes();
+        if (recommendations.isNotEmpty) {
+          log('RepositoryProvider: WebCompatibilityService recommendations: ${recommendations.keys.join(', ')}');
+        }
+        
+        // Automatically switch to offline mode if we haven't already
+        if (!_offlineModeActive && _enableOfflineMode) {
+          log('RepositoryProvider: Auto-switching to offline mode due to web compatibility issue');
+          switchToOfflineMode().catchError((offlineError) {
+            log('RepositoryProvider: Failed auto-switch to offline mode: $offlineError');
+          });
+        }
+      }
+    } else if (SafeJsonConverter.hasWebCompatibilityIssue(error)) {
+      // Fallback for non-web platforms
+      log('RepositoryProvider: Detected compatibility issue in initialization');
       
       // Automatically switch to offline mode if we haven't already
       if (!_offlineModeActive && _enableOfflineMode) {
-        log('RepositoryProvider: Auto-switching to offline mode due to web compatibility issue');
+        log('RepositoryProvider: Auto-switching to offline mode due to compatibility issue');
         switchToOfflineMode().catchError((offlineError) {
           log('RepositoryProvider: Failed auto-switch to offline mode: $offlineError');
         });
@@ -526,9 +552,29 @@ class RepositoryProvider extends ChangeNotifier {
     _consecutiveErrors++;
     _lastErrorTime = now;
     
-    // Check for web compatibility issues (immediate switch)
-    if (kIsWeb && SafeJsonConverter.hasWebCompatibilityIssue(error)) {
-      log('RepositoryProvider: Detected web compatibility issue - switching to offline mode immediately');
+    // Check for web compatibility issues (immediate switch) using WebCompatibilityService
+    if (kIsWeb) {
+      final isWebCompatibilityIssue = WebCompatibilityService.instance.isKnownFirebaseInteropIssue(error);
+      if (isWebCompatibilityIssue) {
+        log('RepositoryProvider: Detected web compatibility issue - switching to offline mode immediately');
+        
+        // Log specific compatibility recommendations
+        final recommendations = WebCompatibilityService.instance.getRecommendedFixes();
+        if (recommendations.isNotEmpty) {
+          log('RepositoryProvider: Following recommendations: ${recommendations.keys.join(', ')}');
+        }
+        
+        try {
+          await switchToOfflineMode();
+          return true;
+        } catch (e) {
+          log('RepositoryProvider: Failed to auto-switch to offline mode: $e');
+          return false;
+        }
+      }
+    } else if (SafeJsonConverter.hasWebCompatibilityIssue(error)) {
+      // Fallback for non-web platforms
+      log('RepositoryProvider: Detected compatibility issue - switching to offline mode immediately');
       
       try {
         await switchToOfflineMode();
@@ -648,16 +694,39 @@ class RepositoryProvider extends ChangeNotifier {
       health['offline_mode'] = _offlineModeActive;
       health['offline_mode_enabled'] = _enableOfflineMode;
       
+      // Check web compatibility (if on web platform)
+      if (kIsWeb) {
+        await WebCompatibilityService.instance.initialize();
+        final hasCompatibilityIssues = WebCompatibilityService.instance.hasCompatibilityIssues();
+        final hasCriticalIssues = WebCompatibilityService.instance.hasCriticalIssues();
+        
+        health['web_compatibility'] = !hasCompatibilityIssues;
+        health['web_critical_issues'] = hasCriticalIssues;
+        
+        if (hasCompatibilityIssues) {
+          log('RepositoryProvider health check: Found web compatibility issues');
+          final report = WebCompatibilityService.instance.generateCompatibilityReport();
+          log('Web compatibility report:\n$report');
+        }
+      } else {
+        health['web_compatibility'] = true; // N/A for non-web platforms
+        health['web_critical_issues'] = false;
+      }
+      
       // Check if repositories are initialized and available
       health['todo_repo'] = _todoRepository != null && (!_authenticationRequired || FirebaseService.instance.isAuthenticated());
       health['weather_repo'] = _weatherRepository != null;
       health['news_repo'] = _newsRepository != null;
       
-      // Overall health status
+      // Overall health status (considering web compatibility)
       health['repositories_available'] = health['todo_repo']! && health['weather_repo']! && health['news_repo']!;
+      health['system_healthy'] = health['repositories_available']! && 
+                                 health['web_compatibility']! && 
+                                 !health['web_critical_issues']!;
       
     } catch (e) {
       debugPrint('Repository health check failed: $e');
+      health['system_healthy'] = false;
     }
     
     return health;
