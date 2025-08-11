@@ -269,16 +269,16 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                   decoration: InputDecoration(
                     hintText: 'Add RSS feed URL...',
                     hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 14,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -307,7 +307,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                 onPressed: _openManageFeedsDialog,
                 icon: const Icon(Icons.settings_rounded, size: 18),
                 style: IconButton.styleFrom(
-                  foregroundColor: Colors.white.withOpacity(0.7),
+                  foregroundColor: Colors.white.withValues(alpha: 0.7),
                   padding: const EdgeInsets.all(8),
                   minimumSize: const Size(36, 36),
                 ),
@@ -355,13 +355,13 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: isSelected 
-                            ? DarkThemeData.accentColor.withOpacity(0.2)
+                            ? DarkThemeData.accentColor.withValues(alpha: 0.2)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected 
                               ? DarkThemeData.accentColor 
-                              : Colors.white.withOpacity(0.2),
+                              : Colors.white.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Text(
@@ -369,7 +369,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                         style: TextStyle(
                           color: isSelected 
                               ? DarkThemeData.accentColor
-                              : Colors.white.withOpacity(0.7),
+                              : Colors.white.withValues(alpha: 0.7),
                           fontSize: 12,
                           fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                         ),
@@ -390,9 +390,9 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: DarkThemeData.errorColor.withOpacity(0.1),
+        color: DarkThemeData.errorColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: DarkThemeData.errorColor.withOpacity(0.3)),
+        border: Border.all(color: DarkThemeData.errorColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -434,13 +434,13 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
             Icon(
               Icons.rss_feed_outlined,
               size: 48,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No RSS feeds configured',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -449,7 +449,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
             Text(
               'Add an RSS feed URL above to get started',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -479,13 +479,13 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
             Icon(
               Icons.article_outlined,
               size: 48,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No articles available',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -494,7 +494,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
             Text(
               'Try refreshing or check your feed URLs',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
             ),
@@ -512,7 +512,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
         separatorBuilder: (context, index) => Divider(
           height: 1,
           thickness: 0.5,
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
         ),
         itemBuilder: (context, index) => _buildArticleItem(_filteredArticles[index]),
       ),
@@ -533,7 +533,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: DarkThemeData.accentColor.withOpacity(0.1),
+                color: DarkThemeData.accentColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: article.imageUrl != null
@@ -546,14 +546,14 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Icon(
                           Icons.article_outlined,
-                          color: DarkThemeData.accentColor.withOpacity(0.5),
+                          color: DarkThemeData.accentColor.withValues(alpha: 0.5),
                           size: 24,
                         ),
                       ),
                     )
                   : Icon(
                       Icons.article_outlined,
-                      color: DarkThemeData.accentColor.withOpacity(0.5),
+                      color: DarkThemeData.accentColor.withValues(alpha: 0.5),
                       size: 24,
                     ),
             ),
@@ -582,7 +582,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                     Text(
                       article.description,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 12,
                         height: 1.3,
                       ),
@@ -598,7 +598,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: DarkThemeData.accentColor.withOpacity(0.2),
+                          color: DarkThemeData.accentColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -616,7 +616,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                       Text(
                         _getTimeAgo(article.publishedAt),
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                           fontSize: 10,
                         ),
                       ),
@@ -626,7 +626,7 @@ class _EnhancedNewsWidgetState extends State<EnhancedNewsWidget> {
                       Icon(
                         Icons.open_in_new_rounded,
                         size: 12,
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
                     ],
                   ),

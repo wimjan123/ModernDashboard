@@ -139,7 +139,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: DarkThemeData.accentColor.withOpacity(0.1),
+        color: DarkThemeData.accentColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: ClipRRect(
@@ -159,7 +159,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             return Icon(
               Icons.wb_sunny,
               size: 40,
-              color: DarkThemeData.accentColor.withOpacity(0.5),
+              color: DarkThemeData.accentColor.withValues(alpha: 0.5),
             );
           },
         ),
@@ -229,7 +229,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                 ? Text(
                     _defaultLocation!.displayName,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -239,7 +239,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                 : Text(
                     'No location selected',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 14,
                     ),
                   ),
@@ -249,7 +249,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             onPressed: _openLocationDialog,
             icon: const Icon(Icons.location_on_rounded, size: 18),
             style: IconButton.styleFrom(
-              foregroundColor: Colors.white.withOpacity(0.7),
+              foregroundColor: Colors.white.withValues(alpha: 0.7),
               padding: const EdgeInsets.all(8),
               minimumSize: const Size(36, 36),
             ),
@@ -260,7 +260,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             onPressed: _openConfigDialog,
             icon: const Icon(Icons.settings_rounded, size: 18),
             style: IconButton.styleFrom(
-              foregroundColor: Colors.white.withOpacity(0.7),
+              foregroundColor: Colors.white.withValues(alpha: 0.7),
               padding: const EdgeInsets.all(8),
               minimumSize: const Size(36, 36),
             ),
@@ -296,9 +296,9 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: DarkThemeData.errorColor.withOpacity(0.1),
+        color: DarkThemeData.errorColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: DarkThemeData.errorColor.withOpacity(0.3)),
+        border: Border.all(color: DarkThemeData.errorColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -340,13 +340,13 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             Icon(
               Icons.settings_rounded,
               size: 48,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'Configure Weather API',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -355,7 +355,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             Text(
               'Add your OpenWeatherMap API key to get live weather data',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -385,13 +385,13 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             Icon(
               Icons.location_on_rounded,
               size: 48,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'Add Weather Locations',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -400,7 +400,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             Text(
               'Search and add locations to see weather data',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -430,13 +430,13 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             Icon(
               Icons.cloud_off_rounded,
               size: 48,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No Weather Data',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -445,7 +445,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             Text(
               'Try refreshing to load weather data',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
             ),
@@ -481,7 +481,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                     Text(
                       _currentWeather!.description,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -490,7 +490,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
                       Text(
                         'Feels like ${_currentWeather!.formattedFeelsLike}',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 12,
                         ),
                       ),
@@ -548,7 +548,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
           Text(
             'Updated ${_getTimeAgo(_currentWeather!.updatedAt)}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
               fontSize: 11,
             ),
           ),
@@ -562,7 +562,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -576,7 +576,7 @@ class _EnhancedWeatherWidgetState extends State<EnhancedWeatherWidget> {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 10,
               ),
             ),

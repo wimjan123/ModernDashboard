@@ -109,7 +109,7 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
                   scale: 1.0 + (_pulseController.value * 0.1),
                   child: Icon(
                     Icons.dashboard,
-                    color: Colors.blue.withOpacity(0.8 + (_pulseController.value * 0.2)),
+                    color: Colors.blue.withValues(alpha: 0.8 + (_pulseController.value * 0.2)),
                     size: 80,
                   ),
                 );
@@ -131,7 +131,7 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
                       return CircularProgressIndicator(
                         value: _progressController.value,
                         strokeWidth: 6,
-                        backgroundColor: Colors.white.withOpacity(0.1),
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           isRetrying ? Colors.orange : Colors.blue,
                         ),
@@ -174,7 +174,7 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
               width: 300,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(2),
               ),
               child: AnimatedBuilder(
@@ -200,7 +200,7 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
               Text(
                 'Attempt ${status.currentAttempt} of ${status.maxAttempts}',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 14,
                 ),
               ),
@@ -215,9 +215,9 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1 + (_pulseController.value * 0.1)),
+                      color: Colors.orange.withValues(alpha: 0.1 + (_pulseController.value * 0.1)),
                       border: Border.all(
-                        color: Colors.orange.withOpacity(0.3 + (_pulseController.value * 0.2)),
+                        color: Colors.orange.withValues(alpha: 0.3 + (_pulseController.value * 0.2)),
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -256,7 +256,7 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
                   ElevatedButton(
                     onPressed: widget.onCancel,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.8),
+                      backgroundColor: Colors.red.withValues(alpha: 0.8),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
@@ -271,7 +271,7 @@ class _InitializationProgressScreenState extends State<InitializationProgressScr
             Text(
               'Initializing Modern Dashboard...',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 12,
               ),
             ),

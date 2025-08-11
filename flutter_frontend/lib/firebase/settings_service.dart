@@ -25,7 +25,7 @@ class SettingsService {
     if (userId == null) return null;
     
     return FirebaseService.instance.firestore
-        ?.collection('users')
+        .collection('users')
         .doc(userId)
         .collection('settings')
         .doc('app_settings');
@@ -51,7 +51,7 @@ class SettingsService {
         return defaults;
       }
     } catch (e) {
-      print('Error loading settings: $e');
+      debugPrint('Error loading settings: $e');
       return _getDefaultSettings();
     }
   }
@@ -73,7 +73,7 @@ class SettingsService {
 
       await doc.set(settingsWithTimestamp, SetOptions(merge: true));
     } catch (e) {
-      print('Error saving settings: $e');
+      debugPrint('Error saving settings: $e');
       rethrow;
     }
   }
@@ -84,7 +84,7 @@ class SettingsService {
       final settings = await loadSettings();
       return settings[key] as T?;
     } catch (e) {
-      print('Error getting setting $key: $e');
+      debugPrint('Error getting setting $key: $e');
       return null;
     }
   }
@@ -102,7 +102,7 @@ class SettingsService {
         'lastUpdated': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error updating setting $key: $e');
+      debugPrint('Error updating setting $key: $e');
       rethrow;
     }
   }
@@ -148,7 +148,7 @@ class SettingsService {
     try {
       return await loadSettings();
     } catch (e) {
-      print('Error exporting settings: $e');
+      debugPrint('Error exporting settings: $e');
       return null;
     }
   }
@@ -163,7 +163,7 @@ class SettingsService {
       
       await saveSettings(importableSettings);
     } catch (e) {
-      print('Error importing settings: $e');
+      debugPrint('Error importing settings: $e');
       rethrow;
     }
   }
@@ -181,7 +181,7 @@ class SettingsService {
         'last_sign_in': FirebaseService.instance.auth?.currentUser?.metadata.lastSignInTime?.toIso8601String(),
       };
     } catch (e) {
-      print('Error getting user info: $e');
+      debugPrint('Error getting user info: $e');
       return null;
     }
   }
@@ -279,7 +279,7 @@ class SettingsService {
       _preservedSettings!['_preserved_at'] = DateTime.now().toIso8601String();
       _preservedSettings!['_preserved_user_id'] = FirebaseService.instance.getUserId();
       
-      debugPrint('SettingsService: Successfully preserved ${_preservedSettings!.length} settings');
+      debugPrint('SettingsService: Successfully preserved ${_preservedSettings.length} settings');
     } catch (e) {
       debugPrint('SettingsService: Error preserving anonymous settings - $e');
       rethrow;
@@ -331,14 +331,11 @@ class SettingsService {
       
       // Get source settings document
       final fromDoc = FirebaseService.instance.firestore
-          ?.collection('users')
+          .collection('users')
           .doc(fromUserId)
           .collection('settings')
           .doc('app_settings');
       
-      if (fromDoc == null) {
-        throw Exception('Firestore not available');
-      }
       
       final sourceSnapshot = await fromDoc.get();
       if (!sourceSnapshot.exists) {

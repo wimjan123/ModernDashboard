@@ -3,13 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 Future<void> main() async {
-  print('DEBUG: Main function started');
+  debugPrint('DEBUG: Main function started');
   
   WidgetsFlutterBinding.ensureInitialized();
-  print('DEBUG: WidgetsFlutterBinding ensured');
+  debugPrint('DEBUG: WidgetsFlutterBinding ensured');
 
   runApp(const DebugApp());
-  print('DEBUG: runApp called');
+  debugPrint('DEBUG: runApp called');
 }
 
 class DebugApp extends StatelessWidget {
@@ -17,7 +17,7 @@ class DebugApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('DEBUG: DebugApp build() called');
+    debugPrint('DEBUG: DebugApp build() called');
     
     return MaterialApp(
       title: 'Debug Modern Dashboard',
@@ -40,13 +40,13 @@ class _DebugScreenState extends State<DebugScreen> {
   @override
   void initState() {
     super.initState();
-    print('DEBUG: DebugScreen initState() called');
+    debugPrint('DEBUG: DebugScreen initState() called');
     _testFirebaseInit();
   }
 
   Future<void> _testFirebaseInit() async {
     try {
-      print('DEBUG: Testing Firebase initialization...');
+      debugPrint('DEBUG: Testing Firebase initialization...');
       
       // Test basic Firebase imports
       setState(() {
@@ -55,19 +55,19 @@ class _DebugScreenState extends State<DebugScreen> {
       
       // Try to import Firebase
       if (kIsWeb) {
-        print('DEBUG: Running on web platform');
+        debugPrint('DEBUG: Running on web platform');
         setState(() {
           status = 'Web platform detected. Firebase SDK should be loaded.';
         });
       } else {
-        print('DEBUG: Running on native platform');
+        debugPrint('DEBUG: Running on native platform');
         setState(() {
           status = 'Native platform detected.';
         });
       }
       
     } catch (e) {
-      print('DEBUG: Error during Firebase test: $e');
+      debugPrint('DEBUG: Error during Firebase test: $e');
       setState(() {
         status = 'Error during Firebase test: $e';
       });
@@ -76,7 +76,7 @@ class _DebugScreenState extends State<DebugScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('DEBUG: DebugScreen build() called');
+    debugPrint('DEBUG: DebugScreen build() called');
     
     return Scaffold(
       backgroundColor: Colors.black,
@@ -116,7 +116,7 @@ class _DebugScreenState extends State<DebugScreen> {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {
-                  print('DEBUG: Test button pressed');
+                  debugPrint('DEBUG: Test button pressed');
                   setState(() {
                     status = 'Button pressed at ${DateTime.now()}';
                   });

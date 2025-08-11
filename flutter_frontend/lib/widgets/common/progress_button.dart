@@ -243,7 +243,7 @@ class _ProgressButtonState extends State<ProgressButton>
           Text(
             '${(widget.progress! * 100).round()}%',
             style: TextStyle(
-              color: widget.foregroundColor?.withOpacity(0.8),
+              color: widget.foregroundColor?.withValues(alpha: 0.8),
               fontSize: 12,
             ),
           ),
@@ -284,8 +284,8 @@ class _ProgressButtonState extends State<ProgressButton>
                   backgroundColor: widget.backgroundColor,
                   foregroundColor: widget.foregroundColor,
                   padding: widget.padding,
-                  disabledBackgroundColor: widget.backgroundColor?.withOpacity(0.5),
-                  disabledForegroundColor: widget.foregroundColor?.withOpacity(0.5),
+                  disabledBackgroundColor: widget.backgroundColor?.withValues(alpha: 0.5),
+                  disabledForegroundColor: widget.foregroundColor?.withValues(alpha: 0.5),
                 ),
             child: AnimatedSwitcher(
               duration: widget.animationDuration,
@@ -302,7 +302,7 @@ class _ProgressButtonState extends State<ProgressButton>
                   value: widget.progress,
                   backgroundColor: Colors.transparent,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    (widget.foregroundColor ?? Colors.white).withOpacity(0.2),
+                    (widget.foregroundColor ?? Colors.white).withValues(alpha: 0.2),
                   ),
                 ),
               ),

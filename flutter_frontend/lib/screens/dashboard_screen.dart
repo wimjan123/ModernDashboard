@@ -26,8 +26,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Theme.of(context).colorScheme.background.withOpacity(0.9),
-                Theme.of(context).colorScheme.surface.withOpacity(0.8),
+                Theme.of(context).colorScheme.background.withValues(alpha: 0.9),
+                Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
               ],
             ),
           ),
@@ -85,7 +85,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             center: Alignment.topLeft,
             radius: 1.5,
             colors: [
-              DarkThemeData.accentColor.withOpacity(0.05),
+              DarkThemeData.accentColor.withValues(alpha: 0.05),
               Theme.of(context).colorScheme.background,
               Theme.of(context).colorScheme.background,
             ],
@@ -98,7 +98,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               center: Alignment.bottomRight,
               radius: 1.2,
               colors: [
-                Theme.of(context).colorScheme.primary.withOpacity(0.03),
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.03),
                 Colors.transparent,
               ],
             ),
@@ -120,7 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (BuildContext context) {
         return Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
+            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(20),
             ),
@@ -137,7 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

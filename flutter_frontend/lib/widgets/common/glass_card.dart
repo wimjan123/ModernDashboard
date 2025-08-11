@@ -76,21 +76,21 @@ class _GlassCardState extends State<GlassCard>
                 borderRadius: borderRadius,
                 border: Border.all(
                   color: _isHovered 
-                      ? borderColor.withOpacity(0.3)
-                      : borderColor.withOpacity(0.1),
+                      ? borderColor.withValues(alpha: 0.3)
+                      : borderColor.withValues(alpha: 0.1),
                   width: 1,
                 ),
                 boxShadow: _isHovered
                     ? [
                         BoxShadow(
-                          color: DarkThemeData.accentColor.withOpacity(0.1),
+                          color: DarkThemeData.accentColor.withValues(alpha: 0.1),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                       ]
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -109,8 +109,8 @@ class _GlassCardState extends State<GlassCard>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          backgroundColor.withOpacity(0.8),
-                          backgroundColor.withOpacity(0.6),
+                          backgroundColor.withValues(alpha: 0.8),
+                          backgroundColor.withValues(alpha: 0.6),
                         ],
                       ),
                     ),
@@ -172,8 +172,8 @@ class GlassInfoCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: accentColor?.withOpacity(0.1) ?? 
-                               Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        color: accentColor?.withValues(alpha: 0.1) ?? 
+                               Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: icon!,
@@ -221,7 +221,7 @@ class GlassActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary.withOpacity(0.1),
+      backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
       onTap: onPressed,
       child: DefaultTextStyle(
         style: TextStyle(

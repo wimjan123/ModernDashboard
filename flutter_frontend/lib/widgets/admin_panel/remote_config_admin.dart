@@ -97,13 +97,13 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: _status!.contains('success') || _status!.contains('refreshed')
-                        ? DarkThemeData.accentColor.withOpacity(0.1)
-                        : DarkThemeData.errorColor.withOpacity(0.1),
+                        ? DarkThemeData.accentColor.withValues(alpha: 0.1)
+                        : DarkThemeData.errorColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: _status!.contains('success') || _status!.contains('refreshed')
-                          ? DarkThemeData.accentColor.withOpacity(0.3)
-                          : DarkThemeData.errorColor.withOpacity(0.3),
+                          ? DarkThemeData.accentColor.withValues(alpha: 0.3)
+                          : DarkThemeData.errorColor.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -139,9 +139,9 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +172,7 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
                       '3. Publish the configuration\n'
                       '4. Click "Refresh Config" below',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 12,
                         height: 1.4,
                       ),
@@ -187,7 +187,7 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
               Text(
                 'Current Configuration',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -207,7 +207,7 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
                   decoration: BoxDecoration(
                     color: Colors.grey[850],
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,7 +237,7 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
                                 child: Text(
                                   value,
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.white.withValues(alpha: 0.8),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -253,7 +253,7 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
                 Text(
                   'No configuration available',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 14,
                   ),
                 ),
@@ -264,7 +264,7 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
               Text(
                 'Quick Links',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -356,19 +356,19 @@ class _RemoteConfigAdminPanelState extends State<RemoteConfigAdminPanel> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: Colors.white.withOpacity(0.8)),
+            Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.8)),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 12,
               ),
             ),

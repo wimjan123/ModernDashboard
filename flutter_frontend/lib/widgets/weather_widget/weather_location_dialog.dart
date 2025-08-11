@@ -185,14 +185,14 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Search for locations...',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -219,7 +219,7 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                         )
                       : const Icon(Icons.search, color: DarkThemeData.accentColor),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.1),
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                     padding: const EdgeInsets.all(8),
                     minimumSize: const Size(40, 40),
                   ),
@@ -232,9 +232,9 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: DarkThemeData.errorColor.withOpacity(0.1),
+                  color: DarkThemeData.errorColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: DarkThemeData.errorColor.withOpacity(0.3)),
+                  border: Border.all(color: DarkThemeData.errorColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -260,7 +260,7 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                   children: [
                     TabBar(
                       labelColor: DarkThemeData.accentColor,
-                      unselectedLabelColor: Colors.white.withOpacity(0.6),
+                      unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
                       indicatorColor: DarkThemeData.accentColor,
                       tabs: [
                         Tab(text: 'Search Results (${_searchResults.length})'),
@@ -277,7 +277,7 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                                   child: Text(
                                     'Search for locations above',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.6),
+                                      color: Colors.white.withValues(alpha: 0.6),
                                       fontSize: 14,
                                     ),
                                   ),
@@ -298,7 +298,7 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                                       ),
                                       subtitle: Text(
                                         location.displayName,
-                                        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                                       ),
                                       trailing: alreadyAdded
                                           ? Icon(
@@ -323,7 +323,7 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                                   child: Text(
                                     'No locations added yet',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.6),
+                                      color: Colors.white.withValues(alpha: 0.6),
                                       fontSize: 14,
                                     ),
                                   ),
@@ -341,7 +341,7 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                                             )
                                           : Icon(
                                               Icons.location_on_outlined,
-                                              color: Colors.white.withOpacity(0.5),
+                                              color: Colors.white.withValues(alpha: 0.5),
                                             ),
                                       title: Text(
                                         location.name,
@@ -349,12 +349,12 @@ class _WeatherLocationDialogState extends State<WeatherLocationDialog> {
                                       ),
                                       subtitle: Text(
                                         location.displayName,
-                                        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                                       ),
                                       trailing: PopupMenuButton<String>(
                                         icon: Icon(
                                           Icons.more_vert,
-                                          color: Colors.white.withOpacity(0.7),
+                                          color: Colors.white.withValues(alpha: 0.7),
                                         ),
                                         color: Colors.grey[800],
                                         onSelected: (value) {

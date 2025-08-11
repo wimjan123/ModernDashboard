@@ -259,10 +259,10 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
         width: 600,
         height: 700,
         decoration: BoxDecoration(
-          color: DarkThemeData.cardColor.withOpacity(0.95),
+          color: DarkThemeData.cardColor.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -274,7 +274,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -314,7 +314,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                     onPressed: () => Navigator.of(context).pop(true),
                     icon: const Icon(Icons.close_rounded),
                     style: IconButton.styleFrom(
-                      foregroundColor: Colors.white.withOpacity(0.7),
+                      foregroundColor: Colors.white.withValues(alpha: 0.7),
                       padding: const EdgeInsets.all(8),
                       minimumSize: const Size(36, 36),
                     ),
@@ -329,9 +329,9 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: DarkThemeData.errorColor.withOpacity(0.1),
+                  color: DarkThemeData.errorColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: DarkThemeData.errorColor.withOpacity(0.3)),
+                  border: Border.all(color: DarkThemeData.errorColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -403,7 +403,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
           Text(
             'Stream URL *',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -414,16 +414,16 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
             decoration: InputDecoration(
               hintText: 'https://youtube.com/watch?v=... or rtmp://...',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -439,7 +439,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
           Text(
             'Display Name',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -450,16 +450,16 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
             decoration: InputDecoration(
               hintText: 'Friendly name (auto-generated if empty)',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -475,7 +475,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
           Text(
             'Category',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -486,16 +486,16 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
             decoration: InputDecoration(
               hintText: 'e.g., Gaming, Music, News (defaults to General)',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -511,7 +511,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
           Text(
             'Stream Type',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -522,11 +522,11 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -605,13 +605,13 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
             Icon(
               Icons.play_circle_outline_rounded,
               size: 64,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No video streams configured',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -620,7 +620,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
             Text(
               'Add your first video stream to get started',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
             ),
@@ -635,7 +635,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
       separatorBuilder: (context, index) => Divider(
         height: 1,
         thickness: 0.5,
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
       ),
       itemBuilder: (context, index) {
         final stream = _streams[index];
@@ -672,7 +672,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _getStreamTypeColor(stream.type).withOpacity(0.2),
+                            color: _getStreamTypeColor(stream.type).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -690,7 +690,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                     Text(
                       stream.url,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 14,
                       ),
                       maxLines: 1,
@@ -702,7 +702,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: DarkThemeData.accentColor.withOpacity(0.2),
+                            color: DarkThemeData.accentColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -718,7 +718,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                         Text(
                           'Updated ${_getTimeAgo(stream.updatedAt)}',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
+                            color: Colors.white.withValues(alpha: 0.5),
                             fontSize: 12,
                           ),
                         ),
@@ -735,7 +735,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                     onPressed: () => _editStream(stream),
                     icon: const Icon(Icons.edit_rounded, size: 18),
                     style: IconButton.styleFrom(
-                      foregroundColor: Colors.white.withOpacity(0.7),
+                      foregroundColor: Colors.white.withValues(alpha: 0.7),
                       padding: const EdgeInsets.all(8),
                       minimumSize: const Size(36, 36),
                     ),
@@ -745,7 +745,7 @@ class _VideoStreamManagementDialogState extends State<VideoStreamManagementDialo
                     onPressed: () => _deleteStream(stream),
                     icon: const Icon(Icons.delete_rounded, size: 18),
                     style: IconButton.styleFrom(
-                      foregroundColor: DarkThemeData.errorColor.withOpacity(0.8),
+                      foregroundColor: DarkThemeData.errorColor.withValues(alpha: 0.8),
                       padding: const EdgeInsets.all(8),
                       minimumSize: const Size(36, 36),
                     ),

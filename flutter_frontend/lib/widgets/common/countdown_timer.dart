@@ -239,7 +239,7 @@ class _CountdownTimerState extends State<CountdownTimer>
             child: Text(
               _formatDuration(_remaining),
               style: textStyle.copyWith(
-                color: textStyle.color?.withOpacity(
+                color: textStyle.color?.withValues(alpha:
                   0.8 + (_pulseController.value * 0.2),
                 ),
               ),
@@ -264,7 +264,7 @@ class _CountdownTimerState extends State<CountdownTimer>
                 value: _progressController.value,
                 strokeWidth: 4 * sizeMultiplier,
                 backgroundColor: widget.backgroundColor ?? 
-                    Colors.white.withOpacity(0.1),
+                    Colors.white.withValues(alpha: 0.1),
                 valueColor: AlwaysStoppedAnimation<Color>(_getProgressColor()),
               );
             },
@@ -284,7 +284,7 @@ class _CountdownTimerState extends State<CountdownTimer>
                     _formatDuration(_remaining),
                     style: textStyle.copyWith(
                       fontSize: (textStyle.fontSize ?? 16) * 0.8,
-                      color: textStyle.color?.withOpacity(
+                      color: textStyle.color?.withValues(alpha:
                         0.9 + (_pulseController.value * 0.1),
                       ),
                     ),
@@ -295,7 +295,7 @@ class _CountdownTimerState extends State<CountdownTimer>
                       '${(100 - (_remaining.inMilliseconds / _original.inMilliseconds * 100)).round()}%',
                       style: textStyle.copyWith(
                         fontSize: (textStyle.fontSize ?? 16) * 0.5,
-                        color: textStyle.color?.withOpacity(0.6),
+                        color: textStyle.color?.withValues(alpha: 0.6),
                       ),
                     ),
                   ],

@@ -232,10 +232,10 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
         width: 600,
         height: 700,
         decoration: BoxDecoration(
-          color: DarkThemeData.cardColor.withOpacity(0.95),
+          color: DarkThemeData.cardColor.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -247,7 +247,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -287,7 +287,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                     onPressed: () => Navigator.of(context).pop(true),
                     icon: const Icon(Icons.close_rounded),
                     style: IconButton.styleFrom(
-                      foregroundColor: Colors.white.withOpacity(0.7),
+                      foregroundColor: Colors.white.withValues(alpha: 0.7),
                       padding: const EdgeInsets.all(8),
                       minimumSize: const Size(36, 36),
                     ),
@@ -302,9 +302,9 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: DarkThemeData.errorColor.withOpacity(0.1),
+                  color: DarkThemeData.errorColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: DarkThemeData.errorColor.withOpacity(0.3)),
+                  border: Border.all(color: DarkThemeData.errorColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -376,7 +376,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
           Text(
             'RSS URL *',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -387,16 +387,16 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
             decoration: InputDecoration(
               hintText: 'https://example.com/rss.xml',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -412,7 +412,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
           Text(
             'Display Name',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -423,16 +423,16 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
             decoration: InputDecoration(
               hintText: 'Friendly name (auto-generated if empty)',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -448,7 +448,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
           Text(
             'Category',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -459,16 +459,16 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
             decoration: InputDecoration(
               hintText: 'e.g., Tech, News, Sports (defaults to General)',
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -509,12 +509,12 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
 
           // Popular feeds section
           if (!_isLoading && _editingFeed == null) ...[
-            Divider(color: Colors.white.withOpacity(0.1)),
+            Divider(color: Colors.white.withValues(alpha: 0.1)),
             const SizedBox(height: 16),
             Text(
               'Popular RSS Feeds',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -528,7 +528,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -549,7 +549,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                             Text(
                               feed['url']!,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 12,
                               ),
                               maxLines: 1,
@@ -583,13 +583,13 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
             Icon(
               Icons.rss_feed_outlined,
               size: 64,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No RSS feeds configured',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -598,7 +598,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
             Text(
               'Add your first RSS feed to get started',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
             ),
@@ -613,7 +613,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
       separatorBuilder: (context, index) => Divider(
         height: 1,
         thickness: 0.5,
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
       ),
       itemBuilder: (context, index) {
         final feed = _feeds[index];
@@ -650,7 +650,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: DarkThemeData.accentColor.withOpacity(0.2),
+                            color: DarkThemeData.accentColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -668,7 +668,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                     Text(
                       feed.url,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 14,
                       ),
                       maxLines: 1,
@@ -678,7 +678,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                     Text(
                       'Updated ${_getTimeAgo(feed.updatedAt)}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 12,
                       ),
                     ),
@@ -693,7 +693,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                     onPressed: () => _editFeed(feed),
                     icon: const Icon(Icons.edit_rounded, size: 18),
                     style: IconButton.styleFrom(
-                      foregroundColor: Colors.white.withOpacity(0.7),
+                      foregroundColor: Colors.white.withValues(alpha: 0.7),
                       padding: const EdgeInsets.all(8),
                       minimumSize: const Size(36, 36),
                     ),
@@ -703,7 +703,7 @@ class _RSSFeedManagementDialogState extends State<RSSFeedManagementDialog> {
                     onPressed: () => _deleteFeed(feed),
                     icon: const Icon(Icons.delete_rounded, size: 18),
                     style: IconButton.styleFrom(
-                      foregroundColor: DarkThemeData.errorColor.withOpacity(0.8),
+                      foregroundColor: DarkThemeData.errorColor.withValues(alpha: 0.8),
                       padding: const EdgeInsets.all(8),
                       minimumSize: const Size(36, 36),
                     ),

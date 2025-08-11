@@ -110,10 +110,10 @@ class _AccountMenuState extends State<AccountMenu> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
+        color: Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.grey.withOpacity(0.3),
+          color: Colors.grey.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -153,10 +153,10 @@ class _AccountMenuState extends State<AccountMenu> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.orange.withOpacity(0.3),
+          color: Colors.orange.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -199,10 +199,10 @@ class _AccountMenuState extends State<AccountMenu> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.1),
+        color: Colors.green.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.green.withOpacity(0.3),
+          color: Colors.green.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -368,7 +368,7 @@ class _AccountMenuState extends State<AccountMenu> {
       label: const Text('Change Password'),
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.white70,
-        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -383,7 +383,7 @@ class _AccountMenuState extends State<AccountMenu> {
       label: const Text('Sign Out'),
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.white70,
-        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),

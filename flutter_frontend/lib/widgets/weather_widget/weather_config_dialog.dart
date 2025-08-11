@@ -157,9 +157,9 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: DarkThemeData.accentColor.withOpacity(0.1),
+                color: DarkThemeData.accentColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: DarkThemeData.accentColor.withOpacity(0.3)),
+                border: Border.all(color: DarkThemeData.accentColor.withValues(alpha: 0.3)),
               ),
               child: const Text(
                 'Note: The free tier includes 1,000 API calls per day, which is sufficient for personal use.',
@@ -197,7 +197,7 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
               Text(
                 'OpenWeatherMap API Key',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
@@ -210,14 +210,14 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
                       controller: _apiKeyController,
                       decoration: InputDecoration(
                         hintText: 'Enter your API key...',
-                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -293,7 +293,7 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
               Text(
                 'Temperature Units',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
@@ -304,11 +304,11 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -337,7 +337,7 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
               Text(
                 'Language',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
@@ -348,11 +348,11 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -394,7 +394,7 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
                     child: Text(
                       'Enable weather API',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 16,
                       ),
                     ),
@@ -407,7 +407,7 @@ class _WeatherConfigDialogState extends State<WeatherConfigDialog> {
                 Text(
                   'Weather will use mock data when API is disabled',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 12,
                   ),
                 ),

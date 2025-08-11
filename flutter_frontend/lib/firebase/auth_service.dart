@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'firebase_service.dart';
 
 /// Comprehensive authentication service that wraps FirebaseAuth with
 /// email/password functionality and account linking capabilities

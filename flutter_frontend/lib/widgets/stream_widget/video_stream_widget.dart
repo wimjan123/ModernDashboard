@@ -282,16 +282,16 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                   decoration: InputDecoration(
                     hintText: 'Add stream URL...',
                     hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 14,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -320,7 +320,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                 onPressed: _openManageStreamsDialog,
                 icon: const Icon(Icons.settings_rounded, size: 18),
                 style: IconButton.styleFrom(
-                  foregroundColor: Colors.white.withOpacity(0.7),
+                  foregroundColor: Colors.white.withValues(alpha: 0.7),
                   padding: const EdgeInsets.all(8),
                   minimumSize: const Size(36, 36),
                 ),
@@ -368,13 +368,13 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: isSelected 
-                            ? DarkThemeData.accentColor.withOpacity(0.2)
+                            ? DarkThemeData.accentColor.withValues(alpha: 0.2)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected 
                               ? DarkThemeData.accentColor 
-                              : Colors.white.withOpacity(0.2),
+                              : Colors.white.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Text(
@@ -382,7 +382,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                         style: TextStyle(
                           color: isSelected 
                               ? DarkThemeData.accentColor
-                              : Colors.white.withOpacity(0.7),
+                              : Colors.white.withValues(alpha: 0.7),
                           fontSize: 12,
                           fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                         ),
@@ -403,9 +403,9 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: DarkThemeData.errorColor.withOpacity(0.1),
+        color: DarkThemeData.errorColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: DarkThemeData.errorColor.withOpacity(0.3)),
+        border: Border.all(color: DarkThemeData.errorColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -447,13 +447,13 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
             Icon(
               Icons.play_circle_outline_rounded,
               size: 48,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No video streams configured',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -462,7 +462,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
             Text(
               'Add a stream URL above to get started',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -482,13 +482,13 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
             Icon(
               Icons.filter_list_off_rounded,
               size: 48,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No streams in this category',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -497,7 +497,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
             Text(
               'Try selecting a different category',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 14,
               ),
             ),
@@ -530,13 +530,13 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.white.withOpacity(0.05),
-              Colors.white.withOpacity(0.02),
+              Colors.white.withValues(alpha: 0.05),
+              Colors.white.withValues(alpha: 0.02),
             ],
           ),
         ),
@@ -551,21 +551,21 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                     imageUrl: stream.thumbnailUrl!,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      color: DarkThemeData.accentColor.withOpacity(0.1),
+                      color: DarkThemeData.accentColor.withValues(alpha: 0.1),
                       child: Center(
                         child: Icon(
                           _getStreamTypeIcon(stream.type),
-                          color: DarkThemeData.accentColor.withOpacity(0.5),
+                          color: DarkThemeData.accentColor.withValues(alpha: 0.5),
                           size: 32,
                         ),
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: DarkThemeData.accentColor.withOpacity(0.1),
+                      color: DarkThemeData.accentColor.withValues(alpha: 0.1),
                       child: Center(
                         child: Icon(
                           _getStreamTypeIcon(stream.type),
-                          color: DarkThemeData.accentColor.withOpacity(0.5),
+                          color: DarkThemeData.accentColor.withValues(alpha: 0.5),
                           size: 32,
                         ),
                       ),
@@ -575,11 +575,11 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
               else
                 Positioned.fill(
                   child: Container(
-                    color: DarkThemeData.accentColor.withOpacity(0.1),
+                    color: DarkThemeData.accentColor.withValues(alpha: 0.1),
                     child: Center(
                       child: Icon(
                         _getStreamTypeIcon(stream.type),
-                        color: DarkThemeData.accentColor.withOpacity(0.5),
+                        color: DarkThemeData.accentColor.withValues(alpha: 0.5),
                         size: 32,
                       ),
                     ),
@@ -595,7 +595,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.7),
+                        Colors.black.withValues(alpha: 0.7),
                       ],
                       stops: const [0.5, 1.0],
                     ),
@@ -650,7 +650,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                           decoration: BoxDecoration(
-                            color: _getStreamTypeColor(stream.type).withOpacity(0.2),
+                            color: _getStreamTypeColor(stream.type).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(3),
                           ),
                           child: Text(
@@ -667,7 +667,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                           child: Text(
                             stream.category,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 10,
                             ),
                             maxLines: 1,
@@ -686,7 +686,7 @@ class _VideoStreamWidgetState extends State<VideoStreamWidget> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
