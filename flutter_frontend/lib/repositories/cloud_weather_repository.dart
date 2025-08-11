@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../firebase/firebase_service.dart';
@@ -268,7 +269,7 @@ class CloudWeatherRepository implements WeatherRepository {
       await _cleanupOldCache(weatherData.location, 'current');
     } catch (e) {
       // Cache errors shouldn't break the flow
-      print('Warning: Failed to cache weather data: $e');
+      debugPrint('Warning: Failed to cache weather data: $e');
     }
   }
 
@@ -290,7 +291,7 @@ class CloudWeatherRepository implements WeatherRepository {
       // Clean up old forecast cache
       await _cleanupOldCache(location, 'forecast');
     } catch (e) {
-      print('Warning: Failed to cache forecast data: $e');
+      debugPrint('Warning: Failed to cache forecast data: $e');
     }
   }
 
@@ -313,7 +314,7 @@ class CloudWeatherRepository implements WeatherRepository {
       await batch.commit();
     } catch (e) {
       // Cleanup errors shouldn't break the flow
-      print('Warning: Failed to cleanup old weather cache: $e');
+      debugPrint('Warning: Failed to cleanup old weather cache: $e');
     }
   }
 

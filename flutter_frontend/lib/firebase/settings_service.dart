@@ -177,8 +177,8 @@ class SettingsService {
       return {
         'user_id': userId,
         'is_anonymous': FirebaseService.instance.isAnonymousUser(),
-        'signed_in_at': FirebaseService.instance.auth?.currentUser?.metadata.creationTime?.toIso8601String(),
-        'last_sign_in': FirebaseService.instance.auth?.currentUser?.metadata.lastSignInTime?.toIso8601String(),
+        'signed_in_at': FirebaseService.instance.auth.currentUser?.metadata.creationTime?.toIso8601String(),
+        'last_sign_in': FirebaseService.instance.auth.currentUser?.metadata.lastSignInTime?.toIso8601String(),
       };
     } catch (e) {
       debugPrint('Error getting user info: $e');
@@ -279,7 +279,7 @@ class SettingsService {
       _preservedSettings!['_preserved_at'] = DateTime.now().toIso8601String();
       _preservedSettings!['_preserved_user_id'] = FirebaseService.instance.getUserId();
       
-      debugPrint('SettingsService: Successfully preserved ${_preservedSettings.length} settings');
+      debugPrint('SettingsService: Successfully preserved ${_preservedSettings?.length ?? 0} settings');
     } catch (e) {
       debugPrint('SettingsService: Error preserving anonymous settings - $e');
       rethrow;
@@ -346,7 +346,7 @@ class SettingsService {
       final sourceSettings = sourceSnapshot.data()!;
       
       // Get destination settings document
-      final toDoc = FirebaseService.instance.firestore!
+      final toDoc = FirebaseService.instance.firestore
           .collection('users')
           .doc(toUserId)
           .collection('settings')

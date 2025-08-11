@@ -28,11 +28,11 @@ class FirebaseService {
 
   // Offline mode state management
   bool _isOfflineMode = false;
-  StreamController<bool> _offlineModeController = StreamController<bool>.broadcast();
+  final StreamController<bool> _offlineModeController = StreamController<bool>.broadcast();
   StreamSubscription? _connectivitySubscription;
   
   // Progress tracking infrastructure
-  StreamController<InitializationStatus> _statusController = StreamController<InitializationStatus>.broadcast();
+  final StreamController<InitializationStatus> _statusController = StreamController<InitializationStatus>.broadcast();
   InitializationStatus? _currentStatus;
   Completer<void>? _currentCancelToken;
 

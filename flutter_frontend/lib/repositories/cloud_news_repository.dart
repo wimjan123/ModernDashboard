@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
@@ -147,7 +148,7 @@ class CloudNewsRepository implements NewsRepository {
             'last_fetched': DateTime.now().millisecondsSinceEpoch,
           });
         } catch (e) {
-          print('Warning: Failed to refresh feed ${feed.url}: $e');
+          debugPrint('Warning: Failed to refresh feed ${feed.url}: $e');
         }
       }
       
@@ -307,7 +308,7 @@ class CloudNewsRepository implements NewsRepository {
         articles.add(article);
       }
     } catch (e) {
-      print('Warning: Failed to parse some articles from $feedUrl: $e');
+      debugPrint('Warning: Failed to parse some articles from $feedUrl: $e');
     }
     
     return articles;
@@ -334,7 +335,7 @@ class CloudNewsRepository implements NewsRepository {
       
       await batch.commit();
     } catch (e) {
-      print('Warning: Failed to cache some articles: $e');
+      debugPrint('Warning: Failed to cache some articles: $e');
     }
   }
 
@@ -354,7 +355,7 @@ class CloudNewsRepository implements NewsRepository {
       
       await batch.commit();
     } catch (e) {
-      print('Warning: Failed to cleanup old articles: $e');
+      debugPrint('Warning: Failed to cleanup old articles: $e');
     }
   }
 

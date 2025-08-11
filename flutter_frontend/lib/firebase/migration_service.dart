@@ -161,7 +161,7 @@ class MigrationService {
       
     } catch (e) {
       result.errors.add('Settings migration failed: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -211,7 +211,7 @@ class MigrationService {
       
     } catch (e) {
       result.errors.add('User preferences migration failed: $e');
-      throw e;
+      rethrow;
     }
   }
 
