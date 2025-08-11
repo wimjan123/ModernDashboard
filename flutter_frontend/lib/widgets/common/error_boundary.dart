@@ -28,14 +28,30 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   Object? _error;
   StackTrace? _stackTrace;
   bool _hasError = false;
+  FlutterExceptionHandler? _previousOnError;
 
   @override
   void initState() {
     super.initState();
+    // Store the previous error handler and chain to it
+    _previousOnError = FlutterError.onError;
     FlutterError.onError = _handleFlutterError;
   }
 
+  @override
+  void dispose() {
+    // Restore the previous error handler
+    if (_previousOnError != null) {
+      FlutterError.onError = _previousOnError;
+    }
+    super.dispose();
+  }
+
   void _handleFlutterError(FlutterErrorDetails details) {
+    // First, call the previous error handler to maintain global error handling
+    _previousOnError?.call(details);
+    
+    // Only handle the error locally if this widget is still mounted
     if (mounted) {
       setState(() {
         _error = details.exception;

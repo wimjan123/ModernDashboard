@@ -1,8 +1,11 @@
 import 'dart:developer';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart';
 
 class ErrorReportingService {
-  static final ErrorReportingService _instance = ErrorReportingService._internal();
+  static final ErrorReportingService _instance =
+      ErrorReportingService._internal();
   static ErrorReportingService get instance => _instance;
   ErrorReportingService._internal();
 
@@ -116,7 +119,8 @@ class ErrorReportingService {
 
     ErrorSeverity severity = ErrorSeverity.medium;
     final errorString = error.toString().toLowerCase();
-    if (errorString.contains('javascriptobject') || errorString.contains('typeerror')) {
+    if (errorString.contains('javascriptobject') ||
+        errorString.contains('typeerror')) {
       severity = ErrorSeverity.high;
       context['web_interop_issue'] = 'true';
     }
@@ -164,7 +168,8 @@ class ErrorReportingService {
       if (errorType != null && report.type != errorType) {
         return false;
       }
-      if (since != null && report.timestamp.isBefore(DateTime.now().subtract(since))) {
+      if (since != null &&
+          report.timestamp.isBefore(DateTime.now().subtract(since))) {
         return false;
       }
       return true;
@@ -177,16 +182,19 @@ class ErrorReportingService {
 
   Map<String, dynamic> getErrorSummary() {
     final now = DateTime.now();
-    final recentErrors = _recentErrors.where(
-      (e) => now.difference(e.timestamp).inHours < 24,
-    ).toList();
+    final recentErrors = _recentErrors
+        .where(
+          (e) => now.difference(e.timestamp).inHours < 24,
+        )
+        .toList();
 
     final errorsByType = <String, int>{};
     final errorsBySeverity = <ErrorSeverity, int>{};
-    
+
     for (final error in recentErrors) {
       errorsByType[error.type] = (errorsByType[error.type] ?? 0) + 1;
-      errorsBySeverity[error.severity] = (errorsBySeverity[error.severity] ?? 0) + 1;
+      errorsBySeverity[error.severity] =
+          (errorsBySeverity[error.severity] ?? 0) + 1;
     }
 
     return {
@@ -207,23 +215,38 @@ class ErrorReportingService {
 
   bool _shouldDeduplicateError(ErrorReport report) {
     final errorKey = _generateErrorKey(report);
-    final recentSimilar = _recentErrors.where((existing) =>
-      _generateErrorKey(existing) == errorKey &&
-      DateTime.now().difference(existing.timestamp) < deduplicationWindow,
+    final recentSimilar = _recentErrors.where(
+      (existing) =>
+          _generateErrorKey(existing) == errorKey &&
+          DateTime.now().difference(existing.timestamp) < deduplicationWindow,
     );
-    
-    return recentSimilar.length >= 3; // Don't report more than 3 of the same error in 5 minutes
+
+    return recentSimilar.length >=
+        3; // Don't report more than 3 of the same error in 5 minutes
   }
 
   String _generateErrorKey(ErrorReport report) {
     final errorString = report.error.toString();
     final typePrefix = report.type;
-    final contextKey = report.context['widget_name'] ?? 
-                     report.context['operation'] ?? 
-                     report.context['model_type'] ?? 
-                     'unknown';
-    
-    return '$typePrefix:$contextKey:${errorString.length}';
+    final contextKey = report.context['widget_name'] ??
+        report.context['operation'] ??
+        report.context['model_type'] ??
+        'unknown';
+
+    // Create a more sophisticated key using hash of error message
+    final keyComponents = [
+      typePrefix,
+      contextKey,
+      errorString,
+      report.stackTrace?.toString().split('\n').take(3).join('\n') ??
+          '', // First 3 lines of stack trace
+    ];
+
+    final combinedKey = keyComponents.join('|');
+    final bytes = utf8.encode(combinedKey);
+    final digest = sha256.convert(bytes);
+
+    return '$typePrefix:$contextKey:${digest.toString().substring(0, 16)}';
   }
 
   Map<String, dynamic> _collectDefaultContext() {
@@ -235,20 +258,19 @@ class ErrorReportingService {
   }
 
   void _logError(ErrorReport report) {
-    final contextStr = report.context.entries
-        .map((e) => '${e.key}=${e.value}')
-        .join(', ');
-    
+    final contextStr =
+        report.context.entries.map((e) => '${e.key}=${e.value}').join(', ');
+
     log(
       'ErrorReport[${report.severity.name.toUpperCase()}] ${report.type}: ${report.error}',
       error: report.error,
       stackTrace: kDebugMode ? report.stackTrace : null,
     );
-    
+
     if (contextStr.isNotEmpty) {
       log('ErrorReport Context: $contextStr');
     }
-    
+
     if (report.userAction != null) {
       log('ErrorReport User Action: ${report.userAction}');
     }
@@ -257,7 +279,7 @@ class ErrorReportingService {
   void _reportToExternalServices(ErrorReport report) {
     // Placeholder for external error reporting services like Crashlytics, Sentry, etc.
     // This would be implemented based on the specific service being used
-    
+
     if (kDebugMode) {
       log('ErrorReportingService: Would report to external services: ${report.type}');
     }
@@ -290,9 +312,9 @@ class ErrorReport {
 }
 
 enum ErrorSeverity {
-  low,      // Minor issues, warnings
-  medium,   // Normal errors that don't break functionality
-  high,     // Serious errors that affect functionality
+  low, // Minor issues, warnings
+  medium, // Normal errors that don't break functionality
+  high, // Serious errors that affect functionality
   critical, // Errors that crash the app or break core features
 }
 

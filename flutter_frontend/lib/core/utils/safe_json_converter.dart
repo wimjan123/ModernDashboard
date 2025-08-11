@@ -235,18 +235,70 @@ class SafeJsonConverter {
   static Map<String, dynamic> sanitizeForWeb(Map<String, dynamic> json) {
     if (!kIsWeb) return json;
 
-    final sanitized = <String, dynamic>{};
+    // Add size limits to prevent performance issues with large objects
+    const int maxFields = 100;
+    const int maxStringLength = 10000;
     
-    json.forEach((key, value) {
+    if (json.length > maxFields) {
+      log('SafeJsonConverter: Object too large (${json.length} fields), limiting to first $maxFields fields');
+    }
+
+    final sanitized = <String, dynamic>{};
+    int processedFields = 0;
+    
+    for (final entry in json.entries) {
+      if (processedFields >= maxFields) break;
+      
+      final key = entry.key;
+      final value = entry.value;
+      
       try {
-        // Test if the value can be safely accessed
-        value?.toString(); // Test if the value can be safely accessed
-        sanitized[key] = value;
+        // Optimize type checks for basic types to avoid expensive operations
+        if (value == null || 
+            value is bool || 
+            value is int || 
+            value is double) {
+          sanitized[key] = value;
+        } else if (value is String) {
+          // Limit string length to prevent performance issues
+          if (value.length > maxStringLength) {
+            sanitized[key] = value.substring(0, maxStringLength);
+            log('SafeJsonConverter: Truncated string field $key from ${value.length} to $maxStringLength characters');
+          } else {
+            sanitized[key] = value;
+          }
+        } else if (value is List || value is Map) {
+          // For complex objects, do a simple check without deep inspection
+          try {
+            // Light validation - just check if we can access the type
+            value.runtimeType;
+            sanitized[key] = value;
+          } catch (e) {
+            log('SafeJsonConverter: Sanitizing complex field $key due to web compatibility issue: $e');
+            sanitized[key] = null;
+          }
+        } else {
+          // For other types, do minimal validation
+          try {
+            // Only call toString if it's not a JavaScriptObject-like type
+            final typeString = value.runtimeType.toString();
+            if (!typeString.contains('JavaScriptObject') && 
+                !typeString.contains('_Interceptor')) {
+              value.toString();
+            }
+            sanitized[key] = value;
+          } catch (e) {
+            log('SafeJsonConverter: Sanitizing field $key due to web compatibility issue: $e');
+            sanitized[key] = null;
+          }
+        }
       } catch (e) {
-        log('SafeJsonConverter: Sanitizing field $key due to web compatibility issue: $e');
+        log('SafeJsonConverter: Critical error sanitizing field $key: $e');
         sanitized[key] = null;
       }
-    });
+      
+      processedFields++;
+    }
 
     return sanitized;
   }

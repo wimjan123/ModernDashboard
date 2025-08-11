@@ -1,24 +1,25 @@
 import '../core/utils/timestamp_converter.dart';
+import '../core/utils/safe_json_converter.dart';
 
 abstract class TodoRepository {
   /// Get real-time stream of todos for the current user
   Stream<List<TodoItem>> getTodos();
-  
+
   /// Add a new todo item
   Future<void> addTodo(TodoItem todo);
-  
+
   /// Update an existing todo item
   Future<void> updateTodo(TodoItem todo);
-  
+
   /// Delete a todo by ID
   Future<void> deleteTodo(String id);
-  
+
   /// Toggle completion status of a todo
   Future<void> toggleTodo(String id);
-  
+
   /// Get unique categories used in todos
   Future<List<String>> getCategories();
-  
+
   /// Get todo statistics (total, completed, pending, etc.)
   Future<Map<String, int>> getStatistics();
 }
@@ -52,35 +53,59 @@ class TodoItem {
 
   /// Create TodoItem from JSON (Firestore document)
   factory TodoItem.fromJson(Map<String, dynamic> json) {
-    // Validate required fields
-    if (!_validateRequiredFields(json)) {
+    // Validate required fields using SafeJsonConverter
+    if (!SafeJsonConverter.validateRequiredFields(json, ['id', 'title'],
+        context: 'TodoItem')) {
       throw ArgumentError('Missing required fields in TodoItem JSON');
     }
 
+    // Use SafeJsonConverter for safe field access with fallbacks
     return TodoItem(
-      id: json['id'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      category: json['category'] ?? 'general',
-      priority: json['priority'] ?? 'medium',
-      status: json['status'] ?? 'pending',
-      createdAt: TimestampConverter.parseTimestamp(json['created_at']) ?? DateTime.now(),
-      updatedAt: TimestampConverter.parseTimestamp(json['updated_at']) ?? DateTime.now(),
+      id: SafeJsonConverter.getFieldWithFallback<String>(json, 'id', '',
+              context: 'TodoItem') ??
+          '',
+      title: SafeJsonConverter.getFieldWithFallback<String>(json, 'title', '',
+              context: 'TodoItem') ??
+          '',
+      description: SafeJsonConverter.getFieldWithFallback<String>(
+              json, 'description', '',
+              context: 'TodoItem') ??
+          '',
+      category: SafeJsonConverter.getFieldWithFallback<String>(
+              json, 'category', 'general',
+              context: 'TodoItem') ??
+          'general',
+      priority: SafeJsonConverter.getFieldWithFallback<String>(
+              json, 'priority', 'medium',
+              context: 'TodoItem') ??
+          'medium',
+      status: SafeJsonConverter.getFieldWithFallback<String>(
+              json, 'status', 'pending',
+              context: 'TodoItem') ??
+          'pending',
+      createdAt: TimestampConverter.parseTimestamp(json['created_at']) ??
+          DateTime.now(),
+      updatedAt: TimestampConverter.parseTimestamp(json['updated_at']) ??
+          DateTime.now(),
       dueDate: TimestampConverter.parseTimestamp(json['due_date']),
-      tags: List<String>.from(json['tags'] ?? []),
-      userId: json['user_id'],
+      tags: _parseTagsList(json['tags']),
+      userId: SafeJsonConverter.getFieldWithFallback<String?>(
+          json, 'user_id', null,
+          context: 'TodoItem'),
     );
   }
 
-  /// Validate required fields are present in JSON
-  static bool _validateRequiredFields(Map<String, dynamic> json) {
-    final requiredFields = ['id', 'title'];
-    for (final field in requiredFields) {
-      if (!json.containsKey(field) || json[field] == null || json[field] == '') {
-        return false;
+  /// Safely parse tags list from JSON
+  static List<String> _parseTagsList(dynamic tagsData) {
+    try {
+      if (tagsData == null) return <String>[];
+      if (tagsData is List) {
+        return tagsData.whereType<String>().toList();
       }
+      return <String>[];
+    } catch (e) {
+      return <String>[];
     }
-    return true;
   }
 
   /// Convert TodoItem to JSON (for Firestore storage)
@@ -93,8 +118,10 @@ class TodoItem {
         'category': category,
         'priority': priority,
         'status': status,
-        'created_at': TimestampConverter.dateTimeToMilliseconds(createdAt) ?? DateTime.now().millisecondsSinceEpoch,
-        'updated_at': TimestampConverter.dateTimeToMilliseconds(updatedAt) ?? DateTime.now().millisecondsSinceEpoch,
+        'created_at': TimestampConverter.dateTimeToMilliseconds(createdAt) ??
+            DateTime.now().millisecondsSinceEpoch,
+        'updated_at': TimestampConverter.dateTimeToMilliseconds(updatedAt) ??
+            DateTime.now().millisecondsSinceEpoch,
         'due_date': TimestampConverter.dateTimeToMilliseconds(dueDate),
         'tags': tags,
         'user_id': userId,
