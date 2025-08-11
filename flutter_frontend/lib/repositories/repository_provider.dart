@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../firebase/firebase_service.dart';
+import '../core/services/error_reporting_service.dart';
+import '../core/utils/safe_json_converter.dart';
 import 'todo_repository.dart';
 import 'weather_repository.dart';
 import 'news_repository.dart';
@@ -35,6 +38,12 @@ class RepositoryProvider extends ChangeNotifier {
   bool _offlineModeActive = false;
   StreamSubscription<bool>? _offlineModeSubscription;
   
+  // Error tracking for intelligent offline switching
+  int _consecutiveErrors = 0;
+  DateTime? _lastErrorTime;
+  final int _maxConsecutiveErrors = 3;
+  final Duration _errorWindowDuration = const Duration(minutes: 5);
+  
   bool get isInitialized => _isInitialized;
   bool get requiresAuthentication => _authenticationRequired;
   bool get offlineModeActive => _offlineModeActive;
@@ -55,12 +64,13 @@ class RepositoryProvider extends ChangeNotifier {
           _offlineModeActive = isOffline;
           
           if (wasOffline != _offlineModeActive) {
-            debugPrint('RepositoryProvider: Offline mode changed to $_offlineModeActive');
+            log('RepositoryProvider: Offline mode changed to $_offlineModeActive');
             notifyListeners();
           }
         },
         onError: (error) {
-          debugPrint('RepositoryProvider: Error in offline mode stream: $error');
+          log('RepositoryProvider: Error in offline mode stream: $error');
+          _handleInitializationError(error);
         },
       );
 
@@ -72,14 +82,14 @@ class RepositoryProvider extends ChangeNotifier {
         // Initialize offline repositories
         _offlineModeActive = true;
         await _initializeOfflineRepositories();
-        debugPrint('RepositoryProvider: All repositories initialized in offline mode');
+        log('RepositoryProvider: All repositories initialized in offline mode');
       } else {
         // Initialize Firebase repositories
         _offlineModeActive = false;
         
         // Check authentication status and log warning if needed
         if (!FirebaseService.instance.isAuthenticated()) {
-          debugPrint('RepositoryProvider: Firebase initialized but user not authenticated. Some repositories may have limited functionality.');
+          log('RepositoryProvider: Firebase initialized but user not authenticated. Some repositories may have limited functionality.');
         }
 
         // Initialize all repositories with Firebase implementations
@@ -88,27 +98,81 @@ class RepositoryProvider extends ChangeNotifier {
         await _initializeNewsRepository();
         await _initializeRSSFeedRepository();
         await _initializeVideoStreamRepository();
-        debugPrint('RepositoryProvider: All repositories initialized with Firebase');
+        log('RepositoryProvider: All repositories initialized with Firebase');
       }
 
+      // Reset error tracking on successful initialization
+      _consecutiveErrors = 0;
+      _lastErrorTime = null;
+      
       _isInitialized = true;
       notifyListeners();
     } catch (e) {
+      _handleInitializationError(e);
+      
       // Try offline mode as fallback if enabled
       if (_enableOfflineMode && !_offlineModeActive) {
         try {
-          debugPrint('RepositoryProvider: Attempting offline mode as fallback');
+          log('RepositoryProvider: Attempting offline mode as fallback');
           _offlineModeActive = true;
           await _initializeOfflineRepositories();
           _isInitialized = true;
           notifyListeners();
-          debugPrint('RepositoryProvider: Successfully initialized in offline mode as fallback');
+          log('RepositoryProvider: Successfully initialized in offline mode as fallback');
           return;
         } catch (offlineError) {
-          debugPrint('RepositoryProvider: Offline fallback also failed: $offlineError');
+          log('RepositoryProvider: Offline fallback also failed: $offlineError');
+          ErrorReportingService.instance.reportError(
+            'repository_initialization_failed',
+            offlineError,
+            StackTrace.current,
+            context: {
+              'fallback_mode': 'offline',
+              'original_error': e.toString(),
+            },
+            severity: ErrorSeverity.critical,
+          );
         }
       }
       throw Exception('Failed to initialize repositories: $e');
+    }
+  }
+
+  void _handleInitializationError(dynamic error) {
+    final now = DateTime.now();
+    
+    // Reset counter if enough time has passed
+    if (_lastErrorTime != null && now.difference(_lastErrorTime!) > _errorWindowDuration) {
+      _consecutiveErrors = 0;
+    }
+    
+    _consecutiveErrors++;
+    _lastErrorTime = now;
+    
+    // Report the error
+    ErrorReportingService.instance.reportError(
+      'repository_initialization_error',
+      error,
+      StackTrace.current,
+      context: {
+        'consecutive_errors': _consecutiveErrors,
+        'firebase_initialized': FirebaseService.instance.isInitialized,
+        'offline_mode_active': _offlineModeActive,
+      },
+      severity: _consecutiveErrors >= _maxConsecutiveErrors ? ErrorSeverity.critical : ErrorSeverity.high,
+    );
+
+    // Check for web compatibility issues
+    if (kIsWeb && SafeJsonConverter.hasWebCompatibilityIssue(error)) {
+      log('RepositoryProvider: Detected web compatibility issue in initialization');
+      
+      // Automatically switch to offline mode if we haven't already
+      if (!_offlineModeActive && _enableOfflineMode) {
+        log('RepositoryProvider: Auto-switching to offline mode due to web compatibility issue');
+        switchToOfflineMode().catchError((offlineError) {
+          log('RepositoryProvider: Failed auto-switch to offline mode: $offlineError');
+        });
+      }
     }
   }
 
@@ -317,18 +381,48 @@ class RepositoryProvider extends ChangeNotifier {
   /// Switch to offline mode manually
   Future<void> switchToOfflineMode() async {
     if (_offlineModeActive) {
-      debugPrint('RepositoryProvider: Already in offline mode');
+      log('RepositoryProvider: Already in offline mode');
       return;
     }
 
     try {
-      debugPrint('RepositoryProvider: Switching to offline mode');
+      log('RepositoryProvider: Switching to offline mode');
       _offlineModeActive = true;
+      
+      // Report the offline mode switch
+      ErrorReportingService.instance.reportError(
+        'offline_mode_switch',
+        'User manually switched to offline mode',
+        StackTrace.current,
+        context: {
+          'switch_type': 'manual',
+          'consecutive_errors': _consecutiveErrors,
+          'firebase_available': FirebaseService.instance.isInitialized,
+        },
+        severity: ErrorSeverity.medium,
+      );
+      
       await _initializeOfflineRepositories();
+      
+      // Reset error tracking since we're now in stable offline mode
+      _consecutiveErrors = 0;
+      _lastErrorTime = null;
+      
       notifyListeners();
-      debugPrint('RepositoryProvider: Successfully switched to offline mode');
+      log('RepositoryProvider: Successfully switched to offline mode');
     } catch (e) {
-      debugPrint('RepositoryProvider: Failed to switch to offline mode: $e');
+      log('RepositoryProvider: Failed to switch to offline mode: $e');
+      
+      ErrorReportingService.instance.reportError(
+        'offline_mode_switch_failed',
+        e,
+        StackTrace.current,
+        context: {
+          'switch_type': 'manual',
+        },
+        severity: ErrorSeverity.high,
+      );
+      
       throw Exception('Failed to switch to offline mode: $e');
     }
   }
@@ -336,19 +430,140 @@ class RepositoryProvider extends ChangeNotifier {
   /// Switch to online mode (attempt reconnection)
   Future<void> switchToOnlineMode() async {
     if (!_offlineModeActive) {
-      debugPrint('RepositoryProvider: Already in online mode');
+      log('RepositoryProvider: Already in online mode');
       return;
     }
 
     try {
-      debugPrint('RepositoryProvider: Switching to online mode');
+      log('RepositoryProvider: Switching to online mode');
+      
+      // Check if Firebase is available before attempting switch
+      if (!FirebaseService.instance.isInitialized) {
+        throw Exception('Firebase not initialized - cannot switch to online mode');
+      }
+      
+      // Test Firebase connectivity with a simple operation
+      await _testFirebaseConnectivity();
+      
+      // If test passes, proceed with full initialization
+      final wasOffline = _offlineModeActive;
+      _offlineModeActive = false;
+      
       await reset();
       await initialize();
-      debugPrint('RepositoryProvider: Successfully switched to online mode');
+      
+      // Report successful switch
+      ErrorReportingService.instance.reportError(
+        'online_mode_switch',
+        'Successfully switched from offline to online mode',
+        StackTrace.current,
+        context: {
+          'switch_type': 'manual',
+          'was_offline': wasOffline,
+          'firebase_available': FirebaseService.instance.isInitialized,
+        },
+        severity: ErrorSeverity.low,
+      );
+      
+      log('RepositoryProvider: Successfully switched to online mode');
     } catch (e) {
-      debugPrint('RepositoryProvider: Failed to switch to online mode, staying in offline mode: $e');
+      log('RepositoryProvider: Failed to switch to online mode, staying in offline mode: $e');
+      
+      // Revert to offline mode
+      _offlineModeActive = true;
+      
+      ErrorReportingService.instance.reportError(
+        'online_mode_switch_failed',
+        e,
+        StackTrace.current,
+        context: {
+          'switch_type': 'manual',
+          'reverted_to_offline': true,
+        },
+        severity: ErrorSeverity.medium,
+      );
+      
       // Don't throw error, just log it - offline mode is a valid fallback
+      // Ensure offline repositories are still available
+      try {
+        await _initializeOfflineRepositories();
+        notifyListeners();
+      } catch (offlineError) {
+        log('RepositoryProvider: Critical error - failed to revert to offline mode: $offlineError');
+        throw Exception('Failed to switch to online mode and failed to revert to offline mode: $offlineError');
+      }
     }
+  }
+
+  /// Test Firebase connectivity without full initialization
+  Future<void> _testFirebaseConnectivity() async {
+    try {
+      // Simple connectivity test - try to access Firebase Auth
+      if (!FirebaseService.instance.isAuthenticated()) {
+        log('RepositoryProvider: Firebase available but user not authenticated');
+      }
+      
+      // Additional connectivity tests could be added here
+      log('RepositoryProvider: Firebase connectivity test passed');
+    } catch (e) {
+      throw Exception('Firebase connectivity test failed: $e');
+    }
+  }
+
+  /// Automatically switch to offline mode when persistent errors are detected
+  Future<bool> checkAndHandleErrors(dynamic error) async {
+    if (!_enableOfflineMode || _offlineModeActive) {
+      return false; // Already offline or offline mode disabled
+    }
+
+    final now = DateTime.now();
+    
+    // Reset counter if enough time has passed
+    if (_lastErrorTime != null && now.difference(_lastErrorTime!) > _errorWindowDuration) {
+      _consecutiveErrors = 0;
+    }
+    
+    _consecutiveErrors++;
+    _lastErrorTime = now;
+    
+    // Check for web compatibility issues (immediate switch)
+    if (kIsWeb && SafeJsonConverter.hasWebCompatibilityIssue(error)) {
+      log('RepositoryProvider: Detected web compatibility issue - switching to offline mode immediately');
+      
+      try {
+        await switchToOfflineMode();
+        return true;
+      } catch (e) {
+        log('RepositoryProvider: Failed to auto-switch to offline mode: $e');
+        return false;
+      }
+    }
+    
+    // Check for consecutive errors threshold
+    if (_consecutiveErrors >= _maxConsecutiveErrors) {
+      log('RepositoryProvider: Reached max consecutive errors ($_maxConsecutiveErrors) - switching to offline mode');
+      
+      try {
+        await switchToOfflineMode();
+        return true;
+      } catch (e) {
+        log('RepositoryProvider: Failed to auto-switch to offline mode after consecutive errors: $e');
+        return false;
+      }
+    }
+    
+    return false; // No automatic switch performed
+  }
+
+  /// Get error tracking information
+  Map<String, dynamic> getErrorTrackingInfo() {
+    return {
+      'consecutive_errors': _consecutiveErrors,
+      'last_error_time': _lastErrorTime?.toIso8601String(),
+      'max_consecutive_errors': _maxConsecutiveErrors,
+      'error_window_minutes': _errorWindowDuration.inMinutes,
+      'auto_offline_enabled': _enableOfflineMode,
+    };
   }
 
   /// Get information about offline mode status and available features

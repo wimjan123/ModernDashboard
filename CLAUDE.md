@@ -247,3 +247,4 @@ flutter config --enable-macos-desktop  # for macOS
 ```
 
 - **Development Note**: Always remember to `git push` in between tasks/steps
+- always check if there is a mcp that you can use. The following mcp are installed: Dart, dart, Firebase and Context7

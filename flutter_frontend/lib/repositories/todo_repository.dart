@@ -1,3 +1,5 @@
+import '../core/utils/timestamp_converter.dart';
+
 abstract class TodoRepository {
   /// Get real-time stream of todos for the current user
   Stream<List<TodoItem>> getTodos();
@@ -50,6 +52,11 @@ class TodoItem {
 
   /// Create TodoItem from JSON (Firestore document)
   factory TodoItem.fromJson(Map<String, dynamic> json) {
+    // Validate required fields
+    if (!_validateRequiredFields(json)) {
+      throw ArgumentError('Missing required fields in TodoItem JSON');
+    }
+
     return TodoItem(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
@@ -57,67 +64,57 @@ class TodoItem {
       category: json['category'] ?? 'general',
       priority: json['priority'] ?? 'medium',
       status: json['status'] ?? 'pending',
-      createdAt: _parseTimestamp(json['created_at']) ?? DateTime.now(),
-      updatedAt: _parseTimestamp(json['updated_at']) ?? DateTime.now(),
-      dueDate: _parseTimestamp(json['due_date']),
+      createdAt: TimestampConverter.parseTimestamp(json['created_at']) ?? DateTime.now(),
+      updatedAt: TimestampConverter.parseTimestamp(json['updated_at']) ?? DateTime.now(),
+      dueDate: TimestampConverter.parseTimestamp(json['due_date']),
       tags: List<String>.from(json['tags'] ?? []),
       userId: json['user_id'],
     );
   }
 
-  /// Helper method to parse timestamps from various formats
-  static DateTime? _parseTimestamp(dynamic timestamp) {
-    if (timestamp == null) return null;
-    
-    try {
-      // Handle Firestore Timestamp
-      if (timestamp is Map && timestamp.containsKey('_seconds')) {
-        final seconds = timestamp['_seconds'] as int?;
-        final nanoseconds = timestamp['_nanoseconds'] as int? ?? 0;
-        if (seconds != null) {
-          return DateTime.fromMillisecondsSinceEpoch(
-            (seconds * 1000) + (nanoseconds ~/ 1000000),
-          );
-        }
+  /// Validate required fields are present in JSON
+  static bool _validateRequiredFields(Map<String, dynamic> json) {
+    final requiredFields = ['id', 'title'];
+    for (final field in requiredFields) {
+      if (!json.containsKey(field) || json[field] == null || json[field] == '') {
+        return false;
       }
-      
-      // Handle milliseconds since epoch
-      if (timestamp is int) {
-        return DateTime.fromMillisecondsSinceEpoch(timestamp);
-      }
-      
-      // Handle string timestamp
-      if (timestamp is String) {
-        return DateTime.parse(timestamp);
-      }
-      
-      // Handle DateTime objects directly
-      if (timestamp is DateTime) {
-        return timestamp;
-      }
-    } catch (e) {
-      // If parsing fails, return current time for required fields
-      // or null for optional fields like dueDate
     }
-    
-    return null;
+    return true;
   }
 
   /// Convert TodoItem to JSON (for Firestore storage)
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'description': description,
-      'category': category,
-      'priority': priority,
-      'status': status,
-      'created_at': createdAt.millisecondsSinceEpoch,
-      'updated_at': updatedAt.millisecondsSinceEpoch,
-      'due_date': dueDate?.millisecondsSinceEpoch,
-      'tags': tags,
-      'user_id': userId,
-    };
+    try {
+      return {
+        'id': id,
+        'title': title,
+        'description': description,
+        'category': category,
+        'priority': priority,
+        'status': status,
+        'created_at': TimestampConverter.dateTimeToMilliseconds(createdAt) ?? DateTime.now().millisecondsSinceEpoch,
+        'updated_at': TimestampConverter.dateTimeToMilliseconds(updatedAt) ?? DateTime.now().millisecondsSinceEpoch,
+        'due_date': TimestampConverter.dateTimeToMilliseconds(dueDate),
+        'tags': tags,
+        'user_id': userId,
+      };
+    } catch (e) {
+      // Fallback to basic serialization if timestamp conversion fails
+      return {
+        'id': id,
+        'title': title,
+        'description': description,
+        'category': category,
+        'priority': priority,
+        'status': status,
+        'created_at': createdAt.millisecondsSinceEpoch,
+        'updated_at': updatedAt.millisecondsSinceEpoch,
+        'due_date': dueDate?.millisecondsSinceEpoch,
+        'tags': tags,
+        'user_id': userId,
+      };
+    }
   }
 
   /// Create a copy with updated fields

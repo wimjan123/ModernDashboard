@@ -1,16 +1,18 @@
 import 'dart:async';
+import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mcp_toolkit/mcp_toolkit.dart';
 import 'core/theme/dark_theme.dart';
+import 'core/utils/safe_json_converter.dart';
+import 'widgets/common/error_boundary.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/migration_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/initialization_progress_screen.dart';
 import 'screens/splash_screen.dart';
-import 'screens/initialization_error_screen.dart';
 import 'firebase/firebase_service.dart';
 import 'firebase/migration_service.dart';
 import 'firebase/auth_service.dart';
@@ -19,6 +21,27 @@ import 'core/exceptions/initialization_exception.dart';
 import 'core/models/initialization_status.dart';
 
 Future<void> main() async {
+  // Set up global error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    log(
+      'Flutter Error: ${details.exception}',
+      error: details.exception,
+      stackTrace: kDebugMode ? details.stack : null,
+    );
+    
+    // Check for web-specific JavaScript interop errors
+    if (SafeJsonConverter.hasWebCompatibilityIssue(details.exception)) {
+      log('Detected web compatibility issue - attempting fallback to offline mode');
+      // Try to switch to offline mode automatically
+      RepositoryProvider.instance.switchToOfflineMode().catchError((e) {
+        log('Failed to auto-switch to offline mode: $e');
+      });
+    }
+    
+    // Log error details with context
+    _logErrorDetails(details.exception, details.stack, 'Flutter Widget Error');
+  };
+
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
@@ -42,10 +65,49 @@ Future<void> main() async {
       }
     },
     (error, stack) {
-      // Handle zone errors for MCP server
+      // Handle zone errors for MCP server and general app errors
       MCPToolkitBinding.instance.handleZoneError(error, stack);
+      
+      // Additional error handling for Firebase/Firestore issues
+      _logErrorDetails(error, stack, 'Zone Error');
+      
+      // Check for web-specific errors and attempt recovery
+      if (kIsWeb && SafeJsonConverter.hasWebCompatibilityIssue(error)) {
+        log('Zone error: Detected web compatibility issue - attempting offline mode switch');
+        RepositoryProvider.instance.switchToOfflineMode().catchError((e) {
+          log('Failed to switch to offline mode from zone error: $e');
+        });
+      }
     },
   );
+}
+
+void _logErrorDetails(dynamic error, StackTrace? stackTrace, String context) {
+  final errorString = error.toString();
+  
+  log('$context: $error', error: error, stackTrace: kDebugMode ? stackTrace : null);
+  
+  // Platform-specific logging
+  if (kIsWeb) {
+    log('Platform: Web');
+    if (errorString.contains('JavaScriptObject') || errorString.contains('TypeError')) {
+      log('Web Error Type: JavaScript Interop Issue');
+      log('Suggested Fix: Update Firebase packages or implement web-specific handling');
+    }
+  } else {
+    log('Platform: ${defaultTargetPlatform.name}');
+  }
+  
+  // Error categorization
+  if (errorString.contains('firebase') || errorString.contains('firestore')) {
+    log('Error Category: Firebase/Firestore');
+  } else if (errorString.contains('network') || errorString.contains('socket')) {
+    log('Error Category: Network');
+  } else if (errorString.contains('permission') || errorString.contains('auth')) {
+    log('Error Category: Authentication/Permission');
+  } else {
+    log('Error Category: General Application');
+  }
 }
 
 class ModernDashboardApp extends StatefulWidget {
@@ -86,37 +148,77 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
   
   void _startInitialization() {
     // Start Firebase initialization (non-blocking)
-    debugPrint('Starting Firebase initialization...');
+    log('Starting Firebase initialization...');
     
     FirebaseService.instance.initializeFirebase().then((_) {
-      debugPrint('Firebase initialization completed, initializing repositories...');
+      log('Firebase initialization completed, initializing repositories...');
       // Initialize repositories after Firebase
       return RepositoryProvider.instance.initialize();
     }).then((_) {
-      debugPrint('All initialization completed successfully');
+      log('All initialization completed successfully');
     }).catchError((error) {
-      debugPrint('Initialization failed: $error');
-      // For web platform, if Firebase fails, fallback to offline mode
+      _logErrorDetails(error, StackTrace.current, 'Initialization Error');
+      
+      // Enhanced error handling with specific recovery strategies
       if (kIsWeb) {
-        debugPrint('Web platform: Falling back to offline mode due to Firebase error');
-        RepositoryProvider.instance.switchToOfflineMode();
+        log('Web platform detected - analyzing error for recovery options');
+        
+        // Check for JavaScript interop errors
+        if (SafeJsonConverter.hasWebCompatibilityIssue(error)) {
+          log('Web compatibility issue detected - switching to offline mode automatically');
+          RepositoryProvider.instance.switchToOfflineMode().then((_) {
+            log('Successfully switched to offline mode due to web compatibility issue');
+          }).catchError((offlineError) {
+            log('Failed to switch to offline mode: $offlineError');
+          });
+        } else if (error.toString().contains('firebase') || error.toString().contains('config')) {
+          log('Firebase configuration issue on web - attempting offline mode');
+          RepositoryProvider.instance.switchToOfflineMode().catchError((offlineError) {
+            log('Failed to switch to offline mode due to config issue: $offlineError');
+          });
+        } else {
+          log('General web platform error - attempting offline mode fallback');
+          RepositoryProvider.instance.switchToOfflineMode().catchError((offlineError) {
+            log('Failed general offline mode fallback: $offlineError');
+          });
+        }
+      } else {
+        // Native platform error handling
+        log('Native platform error - checking error type');
+        final errorString = error.toString().toLowerCase();
+        
+        if (errorString.contains('network') || errorString.contains('connection')) {
+          log('Network error detected - switching to offline mode');
+          RepositoryProvider.instance.switchToOfflineMode().catchError((offlineError) {
+            log('Failed to switch to offline mode due to network error: $offlineError');
+          });
+        } else if (errorString.contains('permission') || errorString.contains('auth')) {
+          log('Permission/auth error - initialization will retry');
+          // Let the user handle auth issues through the UI
+        } else {
+          log('Unknown native platform error - will show error screen');
+          // Let error screen handle the specific error
+        }
       }
     });
   }
   
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<RepositoryProvider>.value(
-          value: RepositoryProvider.instance,
-        ),
-      ],
-      child: MaterialApp(
-        title: 'Modern Dashboard',
-        theme: DarkThemeData.theme,
-        home: widget.startInitialization 
-          ? StreamBuilder<InitializationStatus>(
+    return ErrorBoundary(
+      context: 'ModernDashboardApp',
+      displayMode: ErrorDisplayMode.detailed,
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider<RepositoryProvider>.value(
+            value: RepositoryProvider.instance,
+          ),
+        ],
+        child: MaterialApp(
+          title: 'Modern Dashboard',
+          theme: DarkThemeData.theme,
+          home: widget.startInitialization 
+            ? StreamBuilder<InitializationStatus>(
               stream: FirebaseService.instance.initializationStatusStream,
               builder: (context, snapshot) {
                 debugPrint('StreamBuilder snapshot: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, data: ${snapshot.data}');
@@ -199,7 +301,8 @@ class _ModernDashboardAppState extends State<ModernDashboardApp> {
               },
             )
           : const DashboardScreen(), // Skip initialization, go straight to dashboard
-        debugShowCheckedModeBanner: false,
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }
